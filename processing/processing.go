@@ -12,14 +12,17 @@ import (
 // TextProcessor is a structure for text processing
 // It contains the language code and the file path for stop words
 type TextProcessor struct {
-	lang          string // Language code for processing
-	stopWordsFile string // File containing stop words
+	lang string // Language code for processing
 }
 
 // NewTextProcessor creates a new instance of TextProcessor
 // It takes a language code and a file path for stop words as parameters
 func NewTextProcessor(lang string, stopWordsFile string) *TextProcessor {
-	return &TextProcessor{lang: lang, stopWordsFile: stopWordsFile}
+	if stopWordsFile != "" {
+		stopwords.LoadStopWordsFromFile(stopWordsFile, lang, " ")
+	}
+
+	return &TextProcessor{lang: lang}
 }
 
 // FullProcess performs the full cycle of text processing
@@ -86,10 +89,6 @@ func (tp *TextProcessor) Normalize(tokens []string) ([]string, error) {
 func (tp *TextProcessor) RemoveStopWords(tokens []string) ([]string, error) {
 	if _, ok := languageCodesMap[tp.lang]; !ok {
 		return nil, errors.New("unsupported language code")
-	}
-
-	if tp.stopWordsFile != "" {
-		stopwords.LoadStopWordsFromFile(tp.stopWordsFile, tp.lang, " ")
 	}
 
 	cleanedText := stopwords.CleanString(strings.Join(tokens, " "), tp.lang, false)
