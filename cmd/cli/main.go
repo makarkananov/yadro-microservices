@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"strings"
 	"yadro-microservices/processing"
 )
 
@@ -12,21 +13,12 @@ func main() {
 	language := flag.String("l", "en", "Language code for stemming and stop words")
 	flag.Parse()
 
-	tp := processing.NewTextProcessor(*text, *language)
-
-	err := tp.RemoveStopWords(*stopWordsFile)
+	tp := processing.NewTextProcessor(*language, *stopWordsFile)
+	res, err := tp.FullProcess(*text)
 	if err != nil {
-		fmt.Println("Error while removing stop words:", err)
+		fmt.Println("Error while processing text:", err)
 		return
 	}
 
-	err = tp.Normalize()
-	if err != nil {
-		fmt.Println("Error while normalizing:", err)
-		return
-	}
-
-	tp.RemoveDuplicates()
-
-	fmt.Println(tp.GetText())
+	fmt.Println(strings.Join(res, " "))
 }

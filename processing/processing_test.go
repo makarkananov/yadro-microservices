@@ -1,95 +1,230 @@
 package processing
 
 import (
+	"reflect"
 	"testing"
 )
 
-func TestTextProcessor_GetText(t *testing.T) {
-	text := "hello world"
-	lang := "en"
-	tp := NewTextProcessor(text, lang)
+func TestTextProcessor_Tokenize(t *testing.T) {
+	tp := NewTextProcessor("en", "")
 
-	got := tp.GetText()
-	want := "hello world"
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{
+			name: "Tokenize with punctuation and spaces",
+			text: "Hello, world! How are you?",
+			want: []string{"Hello", "world", "How", "are", "you"},
+		},
+		{
+			name: "Tokenize with hyphen",
+			text: "end-to-end",
+			want: []string{"end", "to", "end"},
+		},
+		{
+			name: "Tokenize with apostrophe",
+			text: "I'm fine",
+			want: []string{"I", "fine"},
+		},
+	}
 
-	if got != want {
-		t.Errorf("GetText() = %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tp.Tokenize(tt.text); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Tokenize() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
 func TestTextProcessor_Normalize(t *testing.T) {
-	text := "running fast"
-	lang := "en"
-	tp := NewTextProcessor(text, lang)
+	tp := NewTextProcessor("en", "")
 
-	err := tp.Normalize()
-	if err != nil {
-		t.Fatalf("Normalize() error: %v", err)
+	tests := []struct {
+		name    string
+		tokens  []string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name:    "Normalize English words 1",
+			tokens:  []string{"running", "fast"},
+			want:    []string{"run", "fast"},
+			wantErr: false,
+		},
+		{
+			name:    "Normalize English words 2",
+			tokens:  []string{"following", "you"},
+			want:    []string{"follow", "you"},
+			wantErr: false,
+		},
 	}
 
-	got := tp.GetText()
-	want := "run fast"
-
-	if got != want {
-		t.Errorf("Normalize() = %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tp.Normalize(tt.tokens)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Normalize() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Normalize() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
 func TestTextProcessor_RemoveStopWords(t *testing.T) {
-	text := "the quick brown fox"
-	lang := "en"
-	stopWordsFile := ""
-	tp := NewTextProcessor(text, lang)
+	tp := NewTextProcessor("en", "")
 
-	err := tp.RemoveStopWords(stopWordsFile)
-	if err != nil {
-		t.Fatalf("RemoveStopWords() error: %v", err)
+	tests := []struct {
+		name    string
+		text    []string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name:    "Remove stop words from English text",
+			text:    []string{"the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"},
+			want:    []string{"quick", "brown", "fox", "jumps", "lazy", "dog"},
+			wantErr: false,
+		},
+		{
+			name:    "Remove stop words from empty text",
+			text:    []string{},
+			want:    []string{},
+			wantErr: false,
+		},
+		{
+			name:    "Remove stop words from text with only stop words",
+			text:    []string{"the", "the", "the"},
+			want:    []string{},
+			wantErr: false,
+		},
 	}
 
-	got := tp.GetText()
-	want := "quick brown fox"
-
-	if got != want {
-		t.Errorf("RemoveStopWords() = %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tp.RemoveStopWords(tt.text)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RemoveStopWords() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("RemoveStopWords() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
 func TestTextProcessor_RemoveDuplicates(t *testing.T) {
-	text := "hello world hello world"
-	lang := "en"
-	tp := NewTextProcessor(text, lang)
+	tp := NewTextProcessor("en", "")
 
-	tp.RemoveDuplicates()
+	tests := []struct {
+		name   string
+		tokens []string
+		want   []string
+	}{
+		{
+			name:   "Remove duplicates from token slice",
+			tokens: []string{"hello", "world", "hello", "world"},
+			want:   []string{"hello", "world"},
+		},
+	}
 
-	got := tp.GetText()
-	want := "hello world"
-
-	if got != want {
-		t.Errorf("RemoveDuplicates() = %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tp.RemoveDuplicates(tt.tokens); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("RemoveDuplicates() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
-func TestTextProcessor_NormalizeUnsupportedLanguage(t *testing.T) {
-	text := "hello world"
-	lang := "de" // Unsupported language
-	tp := NewTextProcessor(text, lang)
+func TestTextProcessor_FullProcess(t *testing.T) {
+	tp := NewTextProcessor("en", "")
 
-	err := tp.Normalize()
+	tests := []struct {
+		name    string
+		text    string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name:    "Full process with English text",
+			text:    "The quick brown fox jumps over the lazy dog",
+			want:    []string{"quick", "brown", "fox", "jump", "lazi", "dog"},
+			wantErr: false,
+		},
+		{
+			name:    "Full process with empty text",
+			text:    "",
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "Full process with text containing only stop words",
+			text:    "the the the",
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "Full process with text containing apostrophes",
+			text:    "I'm fine, it's a beautiful day",
+			want:    []string{"i", "fine", "beauti", "day"},
+			wantErr: false,
+		},
+	}
 
-	if err == nil {
-		t.Errorf("Normalize() failed: expected error for unsupported language, got nil")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tp.FullProcess(tt.text)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FullProcess() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FullProcess() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
-func TestTextProcessor_RemoveStopWordsUnsupportedLanguage(t *testing.T) {
-	text := "the quick brown fox"
-	lang := "de" // Unsupported language
-	stopWordsFile := ""
-	tp := NewTextProcessor(text, lang)
+func TestTextProcessor_FullProcess_Russian(t *testing.T) {
+	tp := NewTextProcessor("ru", "")
 
-	err := tp.RemoveStopWords(stopWordsFile)
+	tests := []struct {
+		name    string
+		text    string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name:    "Full process with Russian text",
+			text:    "Быстрый коричневый лис прыгает через ленивую собаку",
+			want:    []string{"быстр", "коричнев", "лис", "прыга", "ленив", "собак"},
+			wantErr: false,
+		},
+		{
+			name:    "Full process with Russian text containing only stop words",
+			text:    "и и и",
+			want:    nil,
+			wantErr: false,
+		},
+	}
 
-	if err == nil {
-		t.Errorf("RemoveStopWords() failed: expected error for unsupported language, got nil")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tp.FullProcess(tt.text)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FullProcess() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FullProcess() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
