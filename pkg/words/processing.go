@@ -1,4 +1,4 @@
-package processing
+package words
 
 import (
 	"errors"
@@ -9,14 +9,14 @@ import (
 	"unicode"
 )
 
-// TextProcessor is a structure for text processing
-// It contains the language code and the file path for stop words
+// TextProcessor is a structure for text processing.
+// It contains the language code and the file path for stop words.
 type TextProcessor struct {
 	lang string // Language code for processing
 }
 
-// NewTextProcessor creates a new instance of TextProcessor
-// It takes a language code and a file path for stop words as parameters
+// NewTextProcessor creates a new instance of TextProcessor.
+// It takes a language code and a file path for stop words as parameters.
 func NewTextProcessor(lang string, stopWordsFile string) *TextProcessor {
 	if stopWordsFile != "" {
 		stopwords.LoadStopWordsFromFile(stopWordsFile, lang, " ")
@@ -25,8 +25,8 @@ func NewTextProcessor(lang string, stopWordsFile string) *TextProcessor {
 	return &TextProcessor{lang: lang}
 }
 
-// FullProcess performs the full cycle of text processing
-// It tokenizes the text, removes stop words, normalizes the tokens and removes duplicates
+// FullProcess performs the full cycle of text processing.
+// It tokenizes the text, removes stop words, normalizes the tokens and removes duplicates.
 func (tp *TextProcessor) FullProcess(text string) ([]string, error) {
 	tokens := tp.Tokenize(text)
 
@@ -45,9 +45,9 @@ func (tp *TextProcessor) FullProcess(text string) ([]string, error) {
 	return tokens, nil
 }
 
-// Tokenize breaks down the text into tokens
-// It splits the text by punctuation and spaces, but treats apostrophes as part of the word
-// If an apostrophe is found, it removes apostrophe with the rest of the word after the apostrophe
+// Tokenize breaks down the text into tokens.
+// It splits the text by punctuation and spaces, but treats apostrophes as part of the word.
+// If an apostrophe is found, it removes apostrophe with the rest of the word after the apostrophe.
 func (tp *TextProcessor) Tokenize(text string) []string {
 	f := func(c rune) bool {
 		return (unicode.IsPunct(c) && c != '\'') || unicode.IsSpace(c)
@@ -64,8 +64,8 @@ func (tp *TextProcessor) Tokenize(text string) []string {
 	return tokens
 }
 
-// Normalize normalizes the token slice by stemming each token
-// It uses the snowball library for stemming
+// Normalize normalizes the token slice by stemming each token.
+// It uses the snowball library for stemming.
 func (tp *TextProcessor) Normalize(tokens []string) ([]string, error) {
 	fullLangName, ok := languageCodesMap[tp.lang]
 	if !ok {
@@ -84,8 +84,8 @@ func (tp *TextProcessor) Normalize(tokens []string) ([]string, error) {
 	return normalizedWords, nil
 }
 
-// RemoveStopWords removes stop words from the token slice
-// It uses the stopwords library to clean the text
+// RemoveStopWords removes stop words from the token slice.
+// It uses the stopwords library to clean the text.
 func (tp *TextProcessor) RemoveStopWords(tokens []string) ([]string, error) {
 	if _, ok := languageCodesMap[tp.lang]; !ok {
 		return nil, errors.New("unsupported language code")
@@ -95,8 +95,8 @@ func (tp *TextProcessor) RemoveStopWords(tokens []string) ([]string, error) {
 	return strings.Fields(cleanedText), nil
 }
 
-// RemoveDuplicates removes duplicates from the token slice
-// It uses a map to track encountered tokens and only keeps the unique ones
+// RemoveDuplicates removes duplicates from the token slice.
+// It uses a map to track encountered tokens and only keeps the unique ones.
 func (tp *TextProcessor) RemoveDuplicates(tokens []string) []string {
 	encountered := map[string]bool{}
 	var uniqueTokens []string
@@ -110,8 +110,8 @@ func (tp *TextProcessor) RemoveDuplicates(tokens []string) []string {
 	return uniqueTokens
 }
 
-// languageCodesMap maps language codes to their full names
-// It is used to check if a language code is supported and to get the full language name for stemming
+// languageCodesMap maps language codes to their full names.
+// It is used to check if a language code is supported and to get the full language name for stemming.
 var languageCodesMap = map[string]string{
 	"en": "english",
 	"ru": "russian",

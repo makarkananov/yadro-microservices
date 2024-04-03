@@ -1,0 +1,3 @@
+source_url: https://xkcd.com
+db_file: database.json
+max_comics_load: 0
