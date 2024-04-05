@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // ComicResponse struct represents a single XKCD comic.
@@ -19,23 +21,29 @@ type ComicResponse struct {
 
 // Client struct represents a client to interact with XKCD API.
 type Client struct {
-	baseURL string // The base URL of the XKCD API
+	baseURL string       // The base URL of the XKCD API
+	client  *http.Client // HTTP client
 }
 
 // NewClient creates a new instance of XKCD client.
 func NewClient(baseURL string) *Client {
 	return &Client{
 		baseURL: baseURL,
+		client:  &http.Client{Timeout: 10 * time.Second},
 	}
-
 }
 
 // getComic retrieves information about a single comic by its ID.
-func (c *Client) getComic(comicID int) (*ComicResponse, error) {
+func (c *Client) getComic(ctx context.Context, comicID int) (*ComicResponse, error) {
 	url := fmt.Sprintf("%s/%d/info.0.json", c.baseURL, comicID)
-	resp, err := http.Get(url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
 
 	defer resp.Body.Close()
@@ -61,77 +69,66 @@ func (c *Client) getComic(comicID int) (*ComicResponse, error) {
 }
 
 // GetComics retrieves information about all XKCD comics.
-func (c *Client) GetComics(ctx context.Context, n int) ([]*ComicResponse, error) {
-	latestComic, err := c.GetLatest()
+func (c *Client) GetComics(ctx context.Context, maxID int, existingIDs map[int]struct{}) ([]*ComicResponse, error) {
+	latestComic, err := c.GetLatest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting last comic: %w", err)
 	}
 
 	totalComics := latestComic.Num
-	if n == 0 || n > totalComics {
-		n = totalComics
+	if maxID == 0 || maxID > totalComics {
+		maxID = totalComics
 	}
 
-	comics := make([]*ComicResponse, 0, n)
+	comics := make([]*ComicResponse, 0, maxID)
 	var mu sync.Mutex
-	errors := make(chan error)
-	done := make(chan bool)
 
-	semaphore := make(chan struct{}, 30)
-	var wg sync.WaitGroup
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(30)
 
-	for i := 1; i <= n; i++ {
-		semaphore <- struct{}{} // Block the semaphore if it is full
-		wg.Add(1)
-		go func(i int) {
-			defer func() {
-				<-semaphore // Release the semaphore when the goroutine finishes
-				wg.Done()
-			}()
+	for i := 1; i <= maxID; i++ {
+		if _, ok := existingIDs[i]; ok {
+			continue // Skip if the comic ID already exists
+		}
+
+		g.Go(func() error {
 			select {
 			case <-ctx.Done():
-				return
+				return ctx.Err()
 			default:
-				comic, err := c.getComic(i)
+				comic, err := c.getComic(ctx, i)
 				if err != nil {
-					errors <- err
-					return
+					return err
 				}
-
 				if comic != nil {
 					mu.Lock()
 					comics = append(comics, comic)
 					mu.Unlock()
 				}
+				return nil
 			}
-		}(i)
+		})
 	}
 
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return comics, ctx.Err()
-		case err := <-errors:
-			return comics, err
-		case <-done:
-			return comics, nil
-		}
+	if err = g.Wait(); err != nil {
+		return comics, err
 	}
+
+	return comics, nil
 }
 
 // GetLatest retrieves information about the latest XKCD comic.
-func (c *Client) GetLatest() (*ComicResponse, error) {
+func (c *Client) GetLatest(ctx context.Context) (*ComicResponse, error) {
 	url := fmt.Sprintf("%s/info.0.json", c.baseURL)
-	resp, err := http.Get(url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed: %w", err)
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP request failed with status code: %d", resp.StatusCode)

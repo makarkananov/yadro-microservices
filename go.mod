@@ -7,6 +7,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.5.6
 	github.com/kljensen/snowball v0.9.0
 	github.com/spf13/viper v1.18.2
+	golang.org/x/sync v0.5.0
 )
 
 require (

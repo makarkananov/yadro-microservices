@@ -19,8 +19,8 @@ func NewJSONDB(filePath string) *JSONDB {
 	}
 }
 
-// SaveJSON saves the data to the JSON database file.
-func (db *JSONDB) SaveJSON(data interface{}) error {
+// Save saves the data to the JSON database file.
+func (db *JSONDB) Save(data interface{}) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
@@ -37,8 +37,8 @@ func (db *JSONDB) SaveJSON(data interface{}) error {
 	return nil
 }
 
-// LoadJSON loads the data from the JSON database file.
-func (db *JSONDB) LoadJSON(v interface{}) error {
+// Load loads the data from the JSON database file.
+func (db *JSONDB) Load(v interface{}) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
