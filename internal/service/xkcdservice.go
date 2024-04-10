@@ -3,11 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/jedib0t/go-pretty/v6/text"
 	"log"
-	"os"
-	"sort"
 	"strings"
 	"yadro-microservices/internal/core"
 	"yadro-microservices/pkg/xkcd"
@@ -41,20 +37,27 @@ func NewXkcdService(client *xkcd.Client, db ComicDatabase, processor ComicProces
 }
 
 // RetrieveAndSaveComics retrieves comics from xkcd.com, processes them, and saves them to the database.
-func (xs *XkcdService) RetrieveAndSaveComics(ctx context.Context, maxComics int) (map[int]*core.Comic, error) {
+func (xs *XkcdService) RetrieveAndSaveComics(
+	ctx context.Context,
+	maxComics int,
+	goroutinesLimit int,
+	gapsLimit uint32,
+) (map[int]*core.Comic, error) {
 	// Load existing comic IDs from the database
+	log.Println("Loading existing comics data from database...")
 	var existingComics map[int]*core.Comic
 	if err := xs.db.Load(&existingComics); err != nil {
 		log.Panic("Error loading comics data from JSON database:", err)
 	}
 
 	// Extract existing comic IDs into a map
-	existingIDs := make(map[int]struct{})
+	existingIDs := make(map[int]bool)
 	for i := range existingComics {
-		existingIDs[i+1] = struct{}{}
+		existingIDs[i+1] = true
 	}
 
-	comicsResponses, err := xs.client.GetComics(ctx, maxComics, existingIDs)
+	log.Println("Retrieving comics data from xkcd.com...")
+	comicsResponses, err := xs.client.GetComics(ctx, maxComics, existingIDs, goroutinesLimit, gapsLimit)
 	if err != nil {
 		fmt.Println("Error retrieving some comics data:", err)
 	}
@@ -84,42 +87,11 @@ func (xs *XkcdService) RetrieveAndSaveComics(ctx context.Context, maxComics int)
 		}
 	}
 
+	log.Println("Saving comics data to database...")
 	// Save comics data to database
 	if err := xs.db.Save(comicsMap); err != nil {
 		return nil, fmt.Errorf("error saving comics data to database: %w", err)
 	}
 
 	return comicsMap, nil
-}
-
-// OutputComics outputs the comics to the console.
-func (xs *XkcdService) OutputComics(comicsMap map[int]*core.Comic, maxComicsShown int) {
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"#", "Img URL", "Keywords"})
-
-	// Sort keys of comicsMap
-	sortedKeys := make([]int, 0, len(comicsMap))
-	for num := range comicsMap {
-		sortedKeys = append(sortedKeys, num)
-	}
-	sort.Ints(sortedKeys)
-
-	// Iterate over sorted keys
-	for _, num := range sortedKeys {
-		t.AppendRow([]interface{}{
-			num,
-			comicsMap[num].Img,
-			text.WrapText(strings.Join(comicsMap[num].Keywords, " "), 70),
-		})
-		t.AppendSeparator()
-
-		// Break the loop if maxComicsShown is reached
-		if t.Length() >= maxComicsShown {
-			break
-		}
-	}
-
-	t.SetStyle(table.StyleLight)
-	t.Render()
 }

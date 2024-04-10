@@ -16,13 +16,12 @@ import (
 
 func main() {
 	// Parse command line flags
-	configPath := flag.String("c", "config.yaml", "Path to configuration file")
-	outputFlag := flag.Bool("o", false, "Flag to output data to screen")
-	maxComicsShown := flag.Int("n", 10, "Flag to limit the number of comics")
+	var configPath string
+	flag.StringVar(&configPath, "c", "config.yaml", "Path to configuration file")
 	flag.Parse()
 
 	// Initialize and load configuration from file
-	viper.SetConfigFile(*configPath)
+	viper.SetConfigFile(configPath)
 	if err := viper.ReadInConfig(); err != nil {
 		log.Panic("Error loading configuration:", err)
 	}
@@ -32,16 +31,14 @@ func main() {
 	processor := words.NewTextProcessor("en", "")
 	xkcdService := service.NewXkcdService(xkcdClient, db, processor)
 
-	maxComics := viper.GetInt("max_comics_load")
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	comics, err := xkcdService.RetrieveAndSaveComics(ctx, maxComics)
+	maxComics := viper.GetInt("max_comics_load")
+	goroutinesLimit := viper.GetInt("parallel")
+	gapsLimit := viper.GetUint32("gaps_limit")
+	_, err := xkcdService.RetrieveAndSaveComics(ctx, maxComics, goroutinesLimit, gapsLimit)
 	if err != nil {
 		log.Panic("Error occurred in xkcdService:", err)
-	}
-
-	if *outputFlag {
-		xkcdService.OutputComics(comics, *maxComicsShown)
 	}
 }
