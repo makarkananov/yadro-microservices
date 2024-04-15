@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"maps"
 	"strings"
 	"yadro-microservices/internal/core"
 	"yadro-microservices/pkg/xkcd"
@@ -53,7 +54,7 @@ func (xs *XkcdService) RetrieveAndSaveComics(
 	// Extract existing comic IDs into a map
 	existingIDs := make(map[int]bool)
 	for i := range existingComics {
-		existingIDs[i+1] = true
+		existingIDs[i] = true
 	}
 
 	log.Println("Retrieving comics data from xkcd.com...")
@@ -81,11 +82,7 @@ func (xs *XkcdService) RetrieveAndSaveComics(
 	}
 
 	// Merge new comics with existing ones
-	for id, comic := range existingComics {
-		if _, ok := comicsMap[id]; !ok {
-			comicsMap[id] = comic
-		}
-	}
+	maps.Copy(comicsMap, existingComics)
 
 	log.Println("Saving comics data to database...")
 	// Save comics data to database
