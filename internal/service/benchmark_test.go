@@ -27,6 +27,7 @@ func BenchmarkThroughDocs(b *testing.B) {
 		})
 	}
 
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = searcher.Search(queryTokens, fts.ThroughDocs(docs))
 	}
@@ -51,6 +52,7 @@ func BenchmarkThroughIndexes(b *testing.B) {
 		b.Fatalf("Failed to load indexes: %v", err)
 	}
 
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = searcher.Search(queryTokens, fts.ThroughIndexes(indexer))
 	}
