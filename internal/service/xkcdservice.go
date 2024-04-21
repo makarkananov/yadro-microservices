@@ -7,13 +7,20 @@ import (
 	"maps"
 	"strings"
 	"yadro-microservices/internal/core"
+	"yadro-microservices/pkg/fts"
 	"yadro-microservices/pkg/xkcd"
 )
 
-// ComicDatabase defines the interface for saving data to the database.
+// ComicDatabase defines the interface for saving comic data to the database.
 type ComicDatabase interface {
-	Save(data interface{}) error
-	Load(v interface{}) error
+	Save(data any) error
+	Load(v any) error
+}
+
+// IndexDatabase defines the interface for saving index data to the database.
+type IndexDatabase interface {
+	Save(data any) error
+	Load(v any) error
 }
 
 // ComicProcessor defines the interface for processing text of the comic.
@@ -24,16 +31,30 @@ type ComicProcessor interface {
 // XkcdService provides methods for managing comics.
 type XkcdService struct {
 	client    *xkcd.Client
-	db        ComicDatabase
+	comicsDB  ComicDatabase
+	indexDB   IndexDatabase
 	processor ComicProcessor
+	indexer   fts.Indexer
+	searcher  fts.Searcher
+	comics    map[int]*core.Comic
 }
 
 // NewXkcdService creates a new instance of XKCD service.
-func NewXkcdService(client *xkcd.Client, db ComicDatabase, processor ComicProcessor) *XkcdService {
+func NewXkcdService(
+	client *xkcd.Client,
+	comicsDB ComicDatabase,
+	indexDB IndexDatabase,
+	processor ComicProcessor,
+	indexer fts.Indexer,
+	searcher fts.Searcher,
+) *XkcdService {
 	return &XkcdService{
 		client:    client,
-		db:        db,
+		comicsDB:  comicsDB,
+		indexDB:   indexDB,
 		processor: processor,
+		indexer:   indexer,
+		searcher:  searcher,
 	}
 }
 
@@ -43,11 +64,11 @@ func (xs *XkcdService) RetrieveAndSaveComics(
 	maxComics int,
 	goroutinesLimit int,
 	gapsLimit uint32,
-) (map[int]*core.Comic, error) {
+) error {
 	// Load existing comic IDs from the database
 	log.Println("Loading existing comics data from database...")
 	var existingComics map[int]*core.Comic
-	if err := xs.db.Load(&existingComics); err != nil {
+	if err := xs.comicsDB.Load(&existingComics); err != nil {
 		log.Panic("Error loading comics data from JSON database:", err)
 	}
 
@@ -60,11 +81,11 @@ func (xs *XkcdService) RetrieveAndSaveComics(
 	log.Println("Retrieving comics data from xkcd.com...")
 	comicsResponses, err := xs.client.GetComics(ctx, maxComics, existingIDs, goroutinesLimit, gapsLimit)
 	if err != nil {
-		fmt.Println("Error retrieving some comics data:", err)
+		log.Println("Error retrieving some comics data:", err)
 	}
 
 	// Convert XKCD comics data to internal representation using processor
-	comicsMap := make(map[int]*core.Comic, len(comicsResponses))
+	xs.comics = make(map[int]*core.Comic, len(comicsResponses))
 	for i := range comicsResponses {
 		comicText := strings.Join([]string{comicsResponses[i].Alt +
 			comicsResponses[i].Transcript +
@@ -72,23 +93,90 @@ func (xs *XkcdService) RetrieveAndSaveComics(
 
 		kw, err := xs.processor.FullProcess(comicText)
 		if err != nil {
-			return nil, fmt.Errorf("error extracting keywords: %w", err)
+			return fmt.Errorf("error extracting keywords: %w", err)
 		}
 
-		comicsMap[comicsResponses[i].Num] = &core.Comic{
+		xs.comics[comicsResponses[i].Num] = &core.Comic{
 			Img:      comicsResponses[i].Img,
 			Keywords: kw,
 		}
 	}
 
 	// Merge new comics with existing ones
-	maps.Copy(comicsMap, existingComics)
+	maps.Copy(xs.comics, existingComics)
 
 	log.Println("Saving comics data to database...")
 	// Save comics data to database
-	if err := xs.db.Save(comicsMap); err != nil {
-		return nil, fmt.Errorf("error saving comics data to database: %w", err)
+	if err = xs.comicsDB.Save(xs.comics); err != nil {
+		return fmt.Errorf("error saving comics data to database: %w", err)
 	}
 
-	return comicsMap, nil
+	return nil
+}
+
+// Index updates the search index and saves it.
+func (xs *XkcdService) Index() error {
+	log.Println("Updating indexes...")
+	err := xs.indexDB.Load(&xs.indexer)
+	if err != nil {
+		return fmt.Errorf("error loading index data from database: %w", err)
+	}
+
+	for id, comic := range xs.comics {
+		xs.indexer.Add(&fts.Document{
+			ID:     id,
+			Tokens: comic.Keywords,
+		})
+	}
+
+	err = xs.indexDB.Save(xs.indexer)
+	if err != nil {
+		return fmt.Errorf("error saving index data to database: %w", err)
+	}
+
+	return nil
+}
+
+// SearchUrlsWithIndex searches for comics by query using the search index.
+func (xs *XkcdService) SearchUrlsWithIndex(query string, n int) ([]string, error) {
+	queryTokens, err := xs.processor.FullProcess(query)
+	if err != nil {
+		return nil, fmt.Errorf("error processing query: %w", err)
+	}
+
+	log.Println("Searching... query tokens:", queryTokens)
+	searchResults := xs.searcher.Search(queryTokens, fts.ThroughIndexes(xs.indexer), fts.ReturnMostRelevant(n))
+
+	urls := make([]string, 0, len(searchResults))
+	for _, searchResult := range searchResults {
+		urls = append(urls, xs.comics[searchResult.ID].Img)
+	}
+
+	return urls, nil
+}
+
+// SearchUrls searches for comics by query.
+func (xs *XkcdService) SearchUrls(query string, n int) ([]string, error) {
+	queryTokens, err := xs.processor.FullProcess(query)
+	log.Println("Searching trough indexes... query tokens:", queryTokens)
+	if err != nil {
+		return nil, fmt.Errorf("error processing query: %w", err)
+	}
+
+	docs := make([]*fts.Document, 0, len(xs.comics))
+	for id, comic := range xs.comics {
+		docs = append(docs, &fts.Document{
+			ID:     id,
+			Tokens: comic.Keywords,
+		})
+	}
+
+	searchResults := xs.searcher.Search(queryTokens, fts.ThroughDocs(docs), fts.ReturnMostRelevant(n))
+
+	urls := make([]string, 0, len(searchResults))
+	for _, searchResult := range searchResults {
+		urls = append(urls, xs.comics[searchResult.ID].Img)
+	}
+
+	return urls, nil
 }
