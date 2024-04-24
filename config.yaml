@@ -1,0 +1,12 @@
+source_url: https://xkcd.com
+comics_db_file: database.json
+index_db_file: index.json
+max_comics_load: 0
+# The optimal value for parallel depends on several factors, including the characteristics of hardware.
+# Generally, we have many I/O-bound tasks that can be executed in parallel (making multiple HTTP requests),
+# So we might increase parallel limit to enhance parallelism.
+# However, an excessively high value for goroutinesLimit can lead to overuse of xkcd resources and degrade performance.
+# I tried to run simple benchmark tests to determine the optimal value and came up with 20.
+# But it's important to remember that such benchmarks are not really representative and, generally, there is no single "correct" value.
+parallel: 20 # Number of parallel requests
+gaps_limit: 2 # Limit of gaps (404 codes) before stopping the process of getting comics

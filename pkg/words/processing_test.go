@@ -1,4 +1,4 @@
-package processing
+package words
 
 import (
 	"reflect"
@@ -161,13 +161,13 @@ func TestTextProcessor_FullProcess(t *testing.T) {
 		{
 			name:    "Full process with empty text",
 			text:    "",
-			want:    nil,
+			want:    []string{},
 			wantErr: false,
 		},
 		{
 			name:    "Full process with text containing only stop words",
 			text:    "the the the",
-			want:    nil,
+			want:    []string{},
 			wantErr: false,
 		},
 		{
@@ -210,7 +210,7 @@ func TestTextProcessor_FullProcess_Russian(t *testing.T) {
 		{
 			name:    "Full process with Russian text containing only stop words",
 			text:    "и и и",
-			want:    nil,
+			want:    []string{},
 			wantErr: false,
 		},
 	}
