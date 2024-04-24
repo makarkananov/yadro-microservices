@@ -26,7 +26,7 @@ func NewTextProcessor(lang string, stopWordsFile string) *TextProcessor {
 }
 
 // FullProcess performs the full cycle of text processing.
-// It tokenizes the text, removes stop words, normalizes the tokens and removes duplicates.
+// It tokenizes the text, removes stop words and normalizes the tokens.
 func (tp *TextProcessor) FullProcess(text string) ([]string, error) {
 	tokens := tp.Tokenize(text)
 
@@ -39,8 +39,6 @@ func (tp *TextProcessor) FullProcess(text string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error while normalizing: %w", err)
 	}
-
-	tokens = tp.RemoveDuplicates(tokens)
 
 	return tokens, nil
 }
