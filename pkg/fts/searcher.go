@@ -4,13 +4,11 @@ import (
 	"sort"
 )
 
-// Searcher is an interface that defines the behavior of a search engine.
-type Searcher interface {
-	Search(queryTokens []string, modifiers ...SearchModifier) SearchResults
+// Document represents a document that can be indexed or searched for.
+type Document struct {
+	ID     int
+	Tokens []string
 }
-
-// SearchModifier is a function that modifies the search results.
-type SearchModifier func([]string, *SearchResults)
 
 type SearchResult struct {
 	ID             int // ID of the document
@@ -47,6 +45,14 @@ func (s SearchResults) FindByID(id int) *SearchResult {
 	return nil
 }
 
+// SearchModifier is a function that modifies the search results.
+type SearchModifier func([]string, *SearchResults)
+
+// Searcher is an interface that defines the behavior of a search engine.
+type Searcher interface {
+	Search(queryTokens []string, modifiers ...SearchModifier) SearchResults
+}
+
 // TokenResult is a struct that represents the number of occurrences of a token in a document with specific ID.
 type TokenResult struct {
 	ID    int
@@ -57,13 +63,17 @@ type TokenResult struct {
 type FullTextSearcher struct{}
 
 // Search searches the query tokens by applying the modifiers to the search results.
-func (s *FullTextSearcher) Search(queryTokens []string, modifiers ...SearchModifier) SearchResults {
+func (s *FullTextSearcher) Search(queryTokens []string, modifiers ...SearchModifier) []int {
 	var searchResults SearchResults
 	for _, modifier := range modifiers {
 		modifier(queryTokens, &searchResults)
 	}
+	res := make([]int, 0, len(searchResults))
+	for _, sr := range searchResults {
+		res = append(res, sr.ID)
+	}
 
-	return searchResults
+	return res
 }
 
 // ReturnMostRelevant returns the most relevant n search results.

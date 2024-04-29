@@ -22,15 +22,21 @@ type ComicResponse struct {
 
 // Client struct represents a client to interact with XKCD API.
 type Client struct {
-	baseURL string       // The base URL of the XKCD API
-	client  *http.Client // HTTP client
+	baseURL         string       // The base URL of the XKCD API
+	client          *http.Client // HTTP client
+	maxComics       int
+	goroutinesLimit int
+	gapsLimit       uint32
 }
 
 // NewClient creates a new instance of XKCD client.
-func NewClient(baseURL string) *Client {
+func NewClient(baseURL string, maxComics int, goroutinesLimit int, gapsLimit uint32) *Client {
 	return &Client{
-		baseURL: baseURL,
-		client:  &http.Client{Timeout: 10 * time.Second},
+		baseURL:         baseURL,
+		client:          &http.Client{Timeout: 10 * time.Second},
+		maxComics:       maxComics,
+		goroutinesLimit: goroutinesLimit,
+		gapsLimit:       gapsLimit,
 	}
 }
 
@@ -72,25 +78,22 @@ func (c *Client) getComic(ctx context.Context, comicID int) (*ComicResponse, err
 // GetComics retrieves information about all XKCD comics.
 func (c *Client) GetComics(
 	ctx context.Context,
-	maxID int,
 	existingIDs map[int]bool,
-	goroutinesLimit int,
-	gapsLimit uint32,
 ) ([]*ComicResponse, error) {
-	comics := make([]*ComicResponse, 0, maxID)
+	comics := make([]*ComicResponse, 0, c.maxComics)
 	var mu sync.Mutex
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(goroutinesLimit)
+	g.SetLimit(c.goroutinesLimit)
 
 	var gaps atomic.Uint32
 
-	for i := 1; i <= maxID || maxID == 0; i++ {
+	for i := 1; i <= c.maxComics || c.maxComics == 0; i++ {
 		if existingIDs[i] {
 			continue // Skip if the comic ID already exists
 		}
 		// Stop producing more goroutines if the number of gaps exceeds the limit
-		if gaps.Load() >= gapsLimit {
+		if gaps.Load() >= c.gapsLimit {
 			break
 		}
 		select {
