@@ -1,9 +1,9 @@
-BINARY_NAME=xkcd
+BINARY_NAME=xkcd-server
 
-default: build
+default: server
 
-build:
-	go build -o ${BINARY_NAME} ./cmd/xkcd/main.go
+server:
+	go build -o ${BINARY_NAME} ./cmd/xkcdserver/main.go
 
 test:
 	go test ./...

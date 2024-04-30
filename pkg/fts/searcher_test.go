@@ -77,10 +77,7 @@ func TestSearch(t *testing.T) {
 
 	results := searcher.Search([]string{"apple", "banana"}, ThroughIndexes(mockIndexer), ReturnMostRelevant(2))
 
-	expectedResults := SearchResults{
-		{ID: 1, NumberOfTokens: 2, Score: 3},
-		{ID: 2, NumberOfTokens: 1, Score: 2},
-	}
+	expectedResults := []int{1, 2}
 
 	if !reflect.DeepEqual(results, expectedResults) {
 		t.Errorf("Search did not return the expected results")
@@ -112,7 +109,9 @@ type MockIndexer struct {
 	Indexes map[string][]*Index
 }
 
-func (m MockIndexer) Add(_ *Document) {}
+func (m MockIndexer) Add(_ *Document) error {
+	return nil
+}
 
 func (m MockIndexer) Get(token string) []*Index {
 	return m.Indexes[token]

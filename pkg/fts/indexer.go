@@ -8,7 +8,7 @@ type Index struct {
 
 // Indexer is an interface that defines the behavior of an indexing engine.
 type Indexer interface {
-	Add(doc *Document)
+	Add(doc *Document) error
 	Get(token string) []*Index
 }
 
@@ -27,9 +27,9 @@ func NewInvertedIndexer() *InvertedIndexer {
 }
 
 // Add adds a document to the inverted index.
-func (i *InvertedIndexer) Add(doc *Document) {
+func (i *InvertedIndexer) Add(doc *Document) error {
 	if i.IndexedDocuments[doc.ID] { // If the document is already indexed, skip it
-		return
+		return nil
 	}
 
 	for _, token := range doc.Tokens {
@@ -61,6 +61,7 @@ func (i *InvertedIndexer) Add(doc *Document) {
 	}
 
 	i.IndexedDocuments[doc.ID] = true
+	return nil
 }
 
 // Get returns the indexes for a given token.
