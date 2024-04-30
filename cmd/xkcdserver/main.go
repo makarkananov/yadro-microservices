@@ -81,17 +81,19 @@ func main() {
 	}
 	xkcdService.ScheduleUpdate(ctx, updateTime)
 
+	// Initialize http mux and handlers
+	mux := http.NewServeMux()
+	xkcdHandler := handler.NewXkcdHandler(xkcdService)
+	mux.HandleFunc("POST /update", xkcdHandler.Update)
+	mux.HandleFunc("GET /pics", xkcdHandler.Search)
+
 	// Configure HTTP server
 	srv := &http.Server{
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 		Addr:              ":" + port,
+		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-
-	// Initialize HTTP handlers
-	xkcdHandler := handler.NewXkcdHandler(xkcdService)
-	http.HandleFunc("POST /update", xkcdHandler.Update)
-	http.HandleFunc("GET /pics", xkcdHandler.Search)
 
 	// Run the server
 	g, gCtx := errgroup.WithContext(ctx)
