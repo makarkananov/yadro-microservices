@@ -1,6 +1,8 @@
 package fts
 
 import (
+	"context"
+	"fmt"
 	"sort"
 )
 
@@ -46,7 +48,7 @@ func (s SearchResults) FindByID(id int) *SearchResult {
 }
 
 // SearchModifier is a function that modifies the search results.
-type SearchModifier func([]string, *SearchResults)
+type SearchModifier func([]string, *SearchResults) error
 
 // Searcher is an interface that defines the behavior of a search engine.
 type Searcher interface {
@@ -63,34 +65,42 @@ type TokenResult struct {
 type FullTextSearcher struct{}
 
 // Search searches the query tokens by applying the modifiers to the search results.
-func (s *FullTextSearcher) Search(queryTokens []string, modifiers ...SearchModifier) []int {
+func (s *FullTextSearcher) Search(queryTokens []string, modifiers ...SearchModifier) ([]int, error) {
 	var searchResults SearchResults
 	for _, modifier := range modifiers {
-		modifier(queryTokens, &searchResults)
+		err := modifier(queryTokens, &searchResults)
+		if err != nil {
+			return nil, fmt.Errorf("error applying search modifier: %w", err)
+		}
 	}
 	res := make([]int, 0, len(searchResults))
 	for _, sr := range searchResults {
 		res = append(res, sr.ID)
 	}
 
-	return res
+	return res, nil
 }
 
 // ReturnMostRelevant returns the most relevant n search results.
 func ReturnMostRelevant(n int) SearchModifier {
-	return func(_ []string, results *SearchResults) {
+	return func(_ []string, results *SearchResults) error {
 		sort.Sort(results)
 		if len(*results) > n {
 			*results = (*results)[:n]
 		}
+
+		return nil
 	}
 }
 
 // ThroughIndexes is a search modifier that searches using the indexer.
-func ThroughIndexes(indexer Indexer) SearchModifier {
-	return func(queryTokens []string, results *SearchResults) {
+func ThroughIndexes(ctx context.Context, indexer Indexer) SearchModifier {
+	return func(queryTokens []string, results *SearchResults) error {
 		for _, token := range queryTokens {
-			tokenResults := indexer.Get(token)
+			tokenResults, err := indexer.Get(ctx, token)
+			if err != nil {
+				return fmt.Errorf("error getting indexes for token %s: %w", token, err)
+			}
 			for _, tr := range tokenResults {
 				r := results.FindByID(tr.ID)
 				if r == nil {
@@ -107,12 +117,14 @@ func ThroughIndexes(indexer Indexer) SearchModifier {
 				r.Score += tr.Score
 			}
 		}
+
+		return nil
 	}
 }
 
 // ThroughDocs is a search modifier that searches using the documents.
 func ThroughDocs(docs []*Document) SearchModifier {
-	return func(queryTokens []string, results *SearchResults) {
+	return func(queryTokens []string, results *SearchResults) error {
 		for _, token := range queryTokens {
 			tokenResults := searchToken(docs, token)
 			for _, tr := range tokenResults {
@@ -131,6 +143,8 @@ func ThroughDocs(docs []*Document) SearchModifier {
 				r.Score += tr.Score
 			}
 		}
+
+		return nil
 	}
 }
 

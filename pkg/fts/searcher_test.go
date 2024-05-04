@@ -1,25 +1,30 @@
-package fts
+package fts_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
+	"yadro-microservices/pkg/fts"
 )
 
 func TestReturnMostRelevant(t *testing.T) {
-	results := SearchResults{
+	results := fts.SearchResults{
 		{ID: 1, NumberOfTokens: 5, Score: 10},
 		{ID: 2, NumberOfTokens: 3, Score: 8},
 		{ID: 3, NumberOfTokens: 4, Score: 6},
 		{ID: 4, NumberOfTokens: 2, Score: 4},
 	}
 
-	expectedResults := SearchResults{
+	expectedResults := fts.SearchResults{
 		{ID: 1, NumberOfTokens: 5, Score: 10},
 		{ID: 3, NumberOfTokens: 4, Score: 6},
 	}
 
-	modifier := ReturnMostRelevant(2)
-	modifier(nil, &results)
+	modifier := fts.ReturnMostRelevant(2)
+	err := modifier(nil, &results)
+	if err != nil {
+		t.Errorf("ReturnMostRelevant modifier returned an error: %v", err)
+	}
 
 	if !reflect.DeepEqual(results, expectedResults) {
 		t.Errorf("ReturnMostRelevant modifier did not return the most relevant results")
@@ -28,7 +33,7 @@ func TestReturnMostRelevant(t *testing.T) {
 
 func TestThroughIndexes(t *testing.T) {
 	mockIndexer := &MockIndexer{
-		Indexes: map[string][]*Index{
+		Indexes: map[string][]*fts.Index{
 			"apple": {
 				{ID: 1, Score: 2},
 			},
@@ -42,12 +47,15 @@ func TestThroughIndexes(t *testing.T) {
 		},
 	}
 
-	results := SearchResults{}
+	results := fts.SearchResults{}
 
-	modifier := ThroughIndexes(mockIndexer)
-	modifier([]string{"apple", "banana"}, &results)
+	modifier := fts.ThroughIndexes(context.Background(), mockIndexer)
+	err := modifier([]string{"apple", "banana"}, &results)
+	if err != nil {
+		t.Errorf("ThroughIndexes modifier returned an error: %v", err)
+	}
 
-	expectedResults := SearchResults{
+	expectedResults := fts.SearchResults{
 		{ID: 1, NumberOfTokens: 2, Score: 3},
 		{ID: 2, NumberOfTokens: 1, Score: 2},
 	}
@@ -59,7 +67,7 @@ func TestThroughIndexes(t *testing.T) {
 
 func TestSearch(t *testing.T) {
 	mockIndexer := &MockIndexer{
-		Indexes: map[string][]*Index{
+		Indexes: map[string][]*fts.Index{
 			"apple": {
 				{ID: 1, Score: 2},
 			},
@@ -73,9 +81,9 @@ func TestSearch(t *testing.T) {
 		},
 	}
 
-	searcher := FullTextSearcher{}
+	searcher := fts.FullTextSearcher{}
 
-	results := searcher.Search([]string{"apple", "banana"}, ThroughIndexes(mockIndexer), ReturnMostRelevant(2))
+	results, _ := searcher.Search([]string{"apple", "banana"}, fts.ThroughIndexes(context.Background(), mockIndexer), fts.ReturnMostRelevant(2))
 
 	expectedResults := []int{1, 2}
 
@@ -85,17 +93,20 @@ func TestSearch(t *testing.T) {
 }
 
 func TestThroughDocs(t *testing.T) {
-	docs := []*Document{
+	docs := []*fts.Document{
 		{ID: 1, Tokens: []string{"apple", "banana", "apple"}},
 		{ID: 2, Tokens: []string{"banana", "orange", "banana"}},
 	}
 
-	results := SearchResults{}
+	results := fts.SearchResults{}
 
-	modifier := ThroughDocs(docs)
-	modifier([]string{"apple", "banana"}, &results)
+	modifier := fts.ThroughDocs(docs)
+	err := modifier([]string{"apple", "banana"}, &results)
+	if err != nil {
+		t.Errorf("ThroughDocs modifier returned an error: %v", err)
+	}
 
-	expectedResults := SearchResults{
+	expectedResults := fts.SearchResults{
 		{ID: 1, NumberOfTokens: 2, Score: 3},
 		{ID: 2, NumberOfTokens: 1, Score: 2},
 	}
@@ -106,13 +117,13 @@ func TestThroughDocs(t *testing.T) {
 }
 
 type MockIndexer struct {
-	Indexes map[string][]*Index
+	Indexes map[string][]*fts.Index
 }
 
-func (m MockIndexer) Add(_ *Document) error {
+func (m MockIndexer) Add(_ *fts.Document) error {
 	return nil
 }
 
-func (m MockIndexer) Get(token string) []*Index {
-	return m.Indexes[token]
+func (m MockIndexer) Get(_ context.Context, token string) ([]*fts.Index, error) {
+	return m.Indexes[token], nil
 }
