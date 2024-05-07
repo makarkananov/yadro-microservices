@@ -46,7 +46,6 @@ func (xh *XkcdHandler) Update(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		log.Printf("Error encoding response: %v", err)
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 
@@ -72,7 +71,6 @@ func (xh *XkcdHandler) Search(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err = json.NewEncoder(w).Encode(urls); err != nil {
 		log.Printf("Error encoding response: %v", err)
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 

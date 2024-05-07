@@ -7,8 +7,8 @@ import (
 	"flag"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
@@ -25,6 +25,7 @@ import (
 	redisrep "yadro-microservices/internal/adapter/repository/redis"
 	"yadro-microservices/internal/adapter/search"
 	"yadro-microservices/internal/core/service"
+	"yadro-microservices/internal/migrations"
 	"yadro-microservices/pkg/fts"
 	"yadro-microservices/pkg/words"
 	"yadro-microservices/pkg/xkcd"
@@ -58,11 +59,12 @@ func main() {
 	comicClient := xkcdadapter.NewComicClient(xkcdClient, processor)
 
 	// Add postgres client and repository, apply migrations
-	pgClient, err := sql.Open("postgres", viper.GetString("postgres_url"))
+	postgresURL := viper.GetString("postgres_url")
+	pgClient, err := sql.Open("postgres", postgresURL)
 	if err != nil {
 		log.Panic("Error connecting to the database:", err)
 	}
-	err = applyMigrations(pgClient)
+	err = applyMigrations(postgresURL)
 	if err != nil {
 		log.Panic("Error applying migrations:", err)
 	}
@@ -128,14 +130,15 @@ func main() {
 	}
 }
 
-func applyMigrations(db *sql.DB) error {
+func applyMigrations(dbURL string) error {
 	log.Println("Trying to apply migrations...")
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
+
+	d, err := iofs.New(migrations.FS, "pg")
 	if err != nil {
 		return err
 	}
 
-	m, err := migrate.NewWithDatabaseInstance("file://internal/migrations/pg", "xkcd", driver)
+	m, err := migrate.NewWithSourceInstance("iofs", d, dbURL)
 	if err != nil {
 		return err
 	}
