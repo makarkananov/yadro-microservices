@@ -36,3 +36,16 @@ type ComicService interface {
 type ComicClient interface {
 	GetComics(ctx context.Context, existingIDs map[int]bool) (domain.Comics, error)
 }
+
+// UserRepository defines the interface for the user repository. It is used to store and retrieve user data.
+type UserRepository interface {
+	Save(ctx context.Context, user *domain.User) error
+	GetByUsername(ctx context.Context, username string) (*domain.User, error)
+}
+
+// AuthService defines the interface for the auth service.
+type AuthService interface {
+	Login(ctx context.Context, username, password string) (string, error)
+	Register(ctx context.Context, author *domain.User, newUser *domain.User) error
+	ValidateToken(ctx context.Context, tokenString string) (*domain.User, error)
+}

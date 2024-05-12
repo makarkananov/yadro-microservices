@@ -24,9 +24,11 @@ import (
 	"yadro-microservices/internal/adapter/repository/pg"
 	redisrep "yadro-microservices/internal/adapter/repository/redis"
 	"yadro-microservices/internal/adapter/search"
+	"yadro-microservices/internal/core/domain"
 	"yadro-microservices/internal/core/service"
 	"yadro-microservices/internal/migrations"
 	"yadro-microservices/pkg/fts"
+	"yadro-microservices/pkg/middleware"
 	"yadro-microservices/pkg/words"
 	"yadro-microservices/pkg/xkcd"
 )
@@ -58,7 +60,7 @@ func main() {
 	processor := words.NewTextProcessor("en", "extended_stopwords_eng.txt")
 	comicClient := xkcdadapter.NewComicClient(xkcdClient, processor)
 
-	// Add postgres client and repository, apply migrations
+	// Add postgres client and repositories, apply migrations
 	postgresURL := viper.GetString("postgres_url")
 	pgClient, err := sql.Open("postgres", postgresURL)
 	if err != nil {
@@ -69,6 +71,7 @@ func main() {
 		log.Panic("Error applying migrations:", err)
 	}
 	comicsRep := pg.NewComicRepository(pgClient)
+	usersRep := pg.NewUserRepository(pgClient)
 
 	// Add redis client and repository
 	opt, err := redis.ParseURL(viper.GetString("redis_url"))
@@ -99,17 +102,38 @@ func main() {
 	}
 	xkcdService.ScheduleUpdate(ctx, updateTime)
 
+	// Initialize auth service
+	tokenMaxTime := viper.GetInt("token_max_time")
+	authService := service.NewAuthService(usersRep, time.Duration(tokenMaxTime)*time.Minute)
+
 	// Initialize http mux and handlers
 	mux := http.NewServeMux()
 	xkcdHandler := handler.NewXkcdHandler(xkcdService)
-	mux.HandleFunc("POST /update", xkcdHandler.Update)
-	mux.HandleFunc("GET /pics", xkcdHandler.Search)
+	authHandler := handler.NewAuthHandler(authService)
+	mux.HandleFunc("POST /update", middleware.Chain(
+		xkcdHandler.Update,
+		handler.AuthenticationMiddleware(authService, true),
+		handler.AuthorizationMiddleware(domain.ADMIN),
+	))
+	mux.HandleFunc("GET /pics", middleware.Chain(
+		xkcdHandler.Search,
+		handler.AuthenticationMiddleware(authService, true),
+		handler.AuthorizationMiddleware(domain.USER),
+	))
+	mux.HandleFunc("GET /login", authHandler.Login)
+	mux.HandleFunc("POST /register", middleware.Chain(
+		authHandler.Register,
+		handler.AuthenticationMiddleware(authService, false),
+	))
+
+	rl := middleware.NewRateLimiter(viper.GetInt("rate_limit"), 1*time.Second, 1*time.Second)
+	cl := middleware.NewConcurrencyLimiter(viper.GetInt("concurrency_limit"))
 
 	// Configure HTTP server
 	srv := &http.Server{
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 		Addr:              ":" + port,
-		Handler:           mux,
+		Handler:           middleware.Chain(mux.ServeHTTP, rl.Limit, cl.Limit),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
