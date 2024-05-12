@@ -19,12 +19,12 @@ func (m *MockComicService) UpdateComics(ctx context.Context) error {
 	return args.Error(0)
 }
 
-func (m *MockComicService) GetNumberOfComics() int {
+func (m *MockComicService) GetNumberOfComics(_ context.Context) (int, error) {
 	args := m.Called()
-	return args.Int(0)
+	return args.Int(0), nil
 }
 
-func (m *MockComicService) Search(query string) ([]string, error) {
+func (m *MockComicService) Search(_ context.Context, query string) ([]string, error) {
 	args := m.Called(query)
 	return args.Get(0).([]string), args.Error(1)
 }

@@ -1,9 +1,12 @@
-BINARY_NAME=xkcd-server
-
-default: server
-
-server:
-	go build -o ${BINARY_NAME} ./cmd/xkcdserver/main.go
+default: all
 
 test:
 	go test ./...
+
+all: build run
+
+build:
+	docker-compose build
+
+run:
+	docker-compose up -d

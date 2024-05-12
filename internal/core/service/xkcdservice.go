@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"maps"
 	"time"
-	"yadro-microservices/internal/core/domain"
 	"yadro-microservices/internal/core/port"
 )
 
@@ -16,7 +14,6 @@ type XkcdService struct {
 	comicsRep    port.ComicRepository
 	processor    port.ComicProcessor
 	searchEngine port.SearchEngine
-	comics       domain.Comics
 }
 
 // NewXkcdService creates a new instance of XKCD service.
@@ -31,19 +28,7 @@ func NewXkcdService(
 		comicsRep:    comicsRep,
 		processor:    processor,
 		searchEngine: searchEngine,
-		comics:       make(domain.Comics),
 	}
-}
-
-// Init initializes the XKCD service.
-func (xs *XkcdService) Init() error {
-	// Load existing comic IDs from the database
-	err := xs.loadComics()
-	if err != nil {
-		log.Panic("Error loading comics data:", err)
-	}
-
-	return nil
 }
 
 // ScheduleUpdate schedules comics update at a specific time.
@@ -96,79 +81,71 @@ func (xs *XkcdService) UpdateComics(
 	ctx context.Context,
 ) error {
 	// Extract existing comic IDs into a map
-	existingIDs := make(map[int]bool)
-	for i := range xs.comics {
-		existingIDs[i] = true
+	existingIDs, err := xs.comicsRep.GetAllIDs(ctx)
+	if err != nil {
+		return fmt.Errorf("error extracting existing comic IDs: %w", err)
 	}
 
 	// Retrieve comics data from xkcd.com
 	log.Println("Retrieving comics data from xkcd.com...")
-	newComics, err := xs.client.GetComics(ctx, existingIDs)
+	clientCtx, clientCancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer clientCancel()
+	newComics, err := xs.client.GetComics(clientCtx, existingIDs)
 	if err != nil {
 		return fmt.Errorf("error retrieving comics data: %w", err)
 	}
 
-	// Merge new comics with existing ones
-	maps.Copy(xs.comics, newComics)
-
-	// Add comics to the search engine
-	err = xs.searchEngine.Add(xs.comics)
-	if err != nil {
-		return fmt.Errorf("error adding comics to search engine: %w", err)
+	// Save comics data to database
+	log.Println("Saving comics data to database...")
+	comicsRCtx, comicsCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer comicsCancel()
+	if err = xs.comicsRep.Save(comicsRCtx, newComics); err != nil {
+		return fmt.Errorf("error saving comics data to database: %w", err)
 	}
 
-	// Save comics data to database
-	err = xs.saveComics()
+	// Add comics to the search engine
+	log.Println("Adding comics to search engine...")
+	searchEngineCtx, searchEngineCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer searchEngineCancel()
+	err = xs.searchEngine.CreateIndex(searchEngineCtx, newComics)
 	if err != nil {
-		return fmt.Errorf("error saving comics data: %w", err)
+		return fmt.Errorf("error adding comics to search engine: %w", err)
 	}
 
 	return nil
 }
 
 // Search searches for comics by the query and returns their URLs.
-func (xs *XkcdService) Search(query string) ([]string, error) {
+func (xs *XkcdService) Search(ctx context.Context, query string) ([]string, error) {
 	queryTokens, err := xs.processor.FullProcess(query)
 	if err != nil {
 		return nil, fmt.Errorf("error processing query: %w", err)
 	}
 
-	ids, err := xs.searchEngine.Search(queryTokens)
+	ids, err := xs.searchEngine.Search(ctx, queryTokens)
 	if err != nil {
 		return nil, fmt.Errorf("error searching comics: %w", err)
 	}
 
 	urls := make([]string, 0, len(ids))
 	for _, id := range ids {
-		urls = append(urls, xs.comics[id].Img)
+		comic, err := xs.comicsRep.GetByID(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("error getting comic by ID: %w", err)
+		}
+
+		urls = append(urls, comic.Img)
 	}
 
 	return urls, nil
 }
 
-func (xs *XkcdService) loadComics() error {
-	log.Println("Loading comics data from database...")
-	existingComics, err := xs.comicsRep.Load()
+// GetNumberOfComics returns the total number of comics in the database.
+func (xs *XkcdService) GetNumberOfComics(ctx context.Context) (int, error) {
+	total, err := xs.comicsRep.GetTotalComics(ctx)
 	if err != nil {
-		return fmt.Errorf("error loading comics data from database: %w", err)
+		return 0, fmt.Errorf("error getting total number of comics: %w", err)
 	}
 
-	if existingComics != nil {
-		xs.comics = existingComics
-	}
-
-	return nil
-}
-
-func (xs *XkcdService) saveComics() error {
-	log.Println("Saving comics data to database...")
-	if err := xs.comicsRep.Save(xs.comics); err != nil {
-		return fmt.Errorf("error saving comics data to database: %w", err)
-	}
-
-	return nil
-}
-
-func (xs *XkcdService) GetNumberOfComics() int {
-	return len(xs.comics)
+	return total, nil
 }

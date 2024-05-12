@@ -1,7 +1,7 @@
 source_url: https://xkcd.com
-comics_db_file: database.json
-index_db_file: index.json
 max_comics_load: 0 # Number of comics to load from the source
 parallel: 20 # Number of parallel requests
 gaps_limit: 2 # Limit of gaps (404 codes) before stopping the process of getting comics
 update_time: "03:00" # Time when updating the comics database is scheduled
+redis_url: "redis://redis:6379/0"
+postgres_url: "postgres://xkcd_user:xkcd_password@postgres:5432/xkcd?sslmode=disable"

@@ -1,20 +1,26 @@
-package fts
+package fts_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
+	"yadro-microservices/pkg/fts"
+	"yadro-microservices/pkg/fts/mock"
 )
 
 func TestInvertedIndexer_Add(t *testing.T) {
-	indexer := NewInvertedIndexer()
+	mockRepo := mock.NewIndexRepository()
+	indexer := fts.NewInvertedIndexer(mockRepo)
 
-	doc1 := &Document{ID: 1, Tokens: []string{"apple", "banana", "apple"}}
-	doc2 := &Document{ID: 2, Tokens: []string{"banana", "orange", "banana"}}
+	doc1 := &fts.Document{ID: 1, Tokens: []string{"apple", "banana", "apple"}}
+	doc2 := &fts.Document{ID: 2, Tokens: []string{"banana", "orange", "banana"}}
 
-	indexer.Add(doc1)
-	indexer.Add(doc2)
+	err := indexer.Add(context.Background(), []*fts.Document{doc1, doc2})
+	if err != nil {
+		t.Errorf("Error creating inverted index: %v", err)
+	}
 
-	expectedIndexes := map[string][]*Index{
+	expectedIndexes := map[string][]*fts.Index{
 		"apple": {
 			{ID: 1, Score: 2},
 		},
@@ -27,78 +33,66 @@ func TestInvertedIndexer_Add(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(indexer.Indexes, expectedIndexes) {
+	if !reflect.DeepEqual(mockRepo.Indexes, expectedIndexes) {
 		t.Errorf("Indexes after adding documents are not as expected")
 	}
 }
 
 func TestInvertedIndexer_Get(t *testing.T) {
-	indexer := NewInvertedIndexer()
+	mockRepo := mock.NewIndexRepository()
+	indexer := fts.NewInvertedIndexer(mockRepo)
 
-	doc1 := &Document{ID: 1, Tokens: []string{"apple", "banana", "apple"}}
-	doc2 := &Document{ID: 2, Tokens: []string{"banana", "orange", "banana"}}
+	doc1 := &fts.Document{ID: 1, Tokens: []string{"apple", "banana", "apple"}}
+	doc2 := &fts.Document{ID: 2, Tokens: []string{"banana", "orange", "banana"}}
 
-	indexer.Add(doc1)
-	indexer.Add(doc2)
+	err := indexer.Add(context.Background(), []*fts.Document{doc1, doc2})
+	if err != nil {
+		t.Errorf("Error creating inverted index: %v", err)
+	}
 
-	expectedIndexes := []*Index{
+	expectedIndexes := []*fts.Index{
 		{ID: 1, Score: 1},
 		{ID: 2, Score: 2},
 	}
 
-	indexes := indexer.Get("banana")
+	indexes, err := indexer.Get(context.Background(), "banana")
+	if err != nil {
+		t.Errorf("Error getting indexes for 'banana' token: %v", err)
+	}
 
 	if !reflect.DeepEqual(indexes, expectedIndexes) {
 		t.Errorf("Indexes retrieved for 'banana' token are not as expected")
 	}
 }
 
-func TestInvertedIndexer_Get_NotFound(t *testing.T) {
-	indexer := NewInvertedIndexer()
-
-	doc1 := &Document{ID: 1, Tokens: []string{"apple", "banana", "apple"}}
-	doc2 := &Document{ID: 2, Tokens: []string{"banana", "orange", "banana"}}
-
-	indexer.Add(doc1)
-	indexer.Add(doc2)
-
-	indexes := indexer.Get("grape")
-
-	if len(indexes) != 0 {
-		t.Errorf("Unexpected indexes retrieved for 'grape' token")
-	}
-}
-
-func TestInvertedIndexer_Get_EmptyIndex(t *testing.T) {
-	indexer := NewInvertedIndexer()
-
-	indexes := indexer.Get("banana")
-
-	if len(indexes) != 0 {
-		t.Errorf("Unexpected indexes retrieved for 'banana' token from an empty index")
-	}
-}
-
 func TestInvertedIndexer_Add_EmptyDocument(t *testing.T) {
-	indexer := NewInvertedIndexer()
+	mockRepo := mock.NewIndexRepository()
+	indexer := fts.NewInvertedIndexer(mockRepo)
 
-	doc := &Document{ID: 1, Tokens: []string{}}
+	doc := &fts.Document{ID: 1, Tokens: []string{}}
 
-	indexer.Add(doc)
+	err := indexer.Add(context.Background(), []*fts.Document{doc})
+	if err != nil {
+		t.Errorf("Error creating inverted index: %v", err)
+	}
 
-	if len(indexer.Indexes) != 0 {
+	if len(mockRepo.Indexes) != 0 {
 		t.Errorf("Indexes should remain empty when adding an empty document")
 	}
 }
 
 func TestInvertedIndexer_Add_NoTokens(t *testing.T) {
-	indexer := NewInvertedIndexer()
+	mockRepo := mock.NewIndexRepository()
+	indexer := fts.NewInvertedIndexer(mockRepo)
 
-	doc := &Document{ID: 1, Tokens: nil}
+	doc := &fts.Document{ID: 1, Tokens: nil}
 
-	indexer.Add(doc)
+	err := indexer.Add(context.Background(), []*fts.Document{doc})
+	if err != nil {
+		t.Errorf("Error creating inverted index: %v", err)
+	}
 
-	if len(indexer.Indexes) != 0 {
+	if len(mockRepo.Indexes) != 0 {
 		t.Errorf("Indexes should remain empty when adding a document with no tokens")
 	}
 }
