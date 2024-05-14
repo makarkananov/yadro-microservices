@@ -1,30 +1,27 @@
 package middleware
 
 import (
-	"go.uber.org/ratelimit"
 	"net"
 	"net/http"
 	"sync"
-	"time"
+	"yadro-microservices/pkg/limiter"
 )
 
 // RateLimiter is a middleware that limits the number of requests per IP address.
-// It uses the ratelimit package to implement the rate limiting logic.
+// It uses the /x/time/rate package to implement the rate limiting logic.
 type RateLimiter struct {
-	rate    int
-	per     time.Duration
-	timeout time.Duration
-	clients map[string]ratelimit.Limiter
-	mu      sync.Mutex
+	rate      int64
+	maxTokens int64
+	clients   map[string]*limiter.TokenBucket
+	mu        sync.Mutex
 }
 
 // NewRateLimiter creates a new RateLimiter instance.
-func NewRateLimiter(rate int, per time.Duration, timeout time.Duration) *RateLimiter {
+func NewRateLimiter(rate, maxTokens int64) *RateLimiter {
 	return &RateLimiter{
-		rate:    rate,
-		per:     per,
-		timeout: timeout,
-		clients: make(map[string]ratelimit.Limiter),
+		rate:      rate,
+		maxTokens: maxTokens,
+		clients:   make(map[string]*limiter.TokenBucket),
 	}
 }
 
@@ -38,25 +35,15 @@ func (rl *RateLimiter) Limit(handler http.Handler) http.HandlerFunc {
 		}
 		rl.mu.Lock()
 		if _, found := rl.clients[ip]; !found {
-			rl.clients[ip] = ratelimit.New(rl.rate, ratelimit.Per(rl.per), ratelimit.WithoutSlack)
+			rl.clients[ip] = limiter.NewTokenBucket(rl.rate, rl.maxTokens)
 		}
-		limiter := rl.clients[ip]
+		l := rl.clients[ip]
 		rl.mu.Unlock()
 
-		doneCh := make(chan struct{})
-
-		go func() {
-			defer close(doneCh)
-			limiter.Take()
-		}()
-
-		select {
-		case <-doneCh:
+		if l.Allow() {
 			handler.ServeHTTP(w, r)
-			return
-		case <-time.After(rl.timeout):
+		} else {
 			http.Error(w, "Too many requests", http.StatusTooManyRequests)
-			return
 		}
 	}
 }
