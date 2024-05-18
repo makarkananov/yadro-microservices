@@ -41,7 +41,7 @@ func (xs *XkcdService) ScheduleUpdate(ctx context.Context, updateTime time.Time)
 			time.Now().Day(),
 			updateTime.Hour(),
 			updateTime.Minute(),
-			0,
+			updateTime.Second(),
 			0,
 			time.Local,
 		)

@@ -8,30 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"yadro-microservices/internal/core/domain"
+	"yadro-microservices/internal/mocks"
 )
-
-type MockAuthService struct {
-	mock.Mock
-}
-
-func (m *MockAuthService) Login(ctx context.Context, username, password string) (string, error) {
-	args := m.Called(ctx, username, password)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockAuthService) Register(ctx context.Context, author *domain.User, newUser *domain.User) error {
-	args := m.Called(ctx, author, newUser)
-	return args.Error(0)
-}
-
-func (m *MockAuthService) ValidateToken(ctx context.Context, token string) (*domain.User, error) {
-	args := m.Called(ctx, token)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-
-	return args.Get(0).(*domain.User), args.Error(1)
-}
 
 func TestAuthorizationMiddlewareWithAdminRole(t *testing.T) {
 	handler := AuthorizationMiddleware(domain.ADMIN)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
@@ -54,14 +32,13 @@ func TestAuthorizationMiddlewareWithUserRole(t *testing.T) {
 }
 
 func TestAuthenticationMiddlewareWithValidToken(t *testing.T) {
-	authService := new(MockAuthService)
+	authService := new(mocks.AuthService)
 	authService.On("ValidateToken", mock.Anything, "valid_token").Return(&domain.User{}, nil).Once()
 
-	var handler = AuthenticationMiddleware(authService, true)(http.HandlerFunc(func(
-		_ http.ResponseWriter,
-		_ *http.Request,
-	) {
-	}))
+	var handler = AuthenticationMiddleware(
+		authService,
+		true,
+	)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer valid_token")
 	rr := httptest.NewRecorder()
@@ -72,14 +49,17 @@ func TestAuthenticationMiddlewareWithValidToken(t *testing.T) {
 }
 
 func TestAuthenticationMiddlewareWithInvalidToken(t *testing.T) {
-	authService := new(MockAuthService)
-	authService.On("ValidateToken", mock.Anything, "invalid_token").Return(nil, http.ErrNoCookie).Once()
+	authService := new(mocks.AuthService)
+	authService.On(
+		"ValidateToken",
+		mock.Anything,
+		"invalid_token",
+	).Return(nil, http.ErrNoCookie).Once()
 
-	handler := AuthenticationMiddleware(authService, true)(http.HandlerFunc(func(
-		_ http.ResponseWriter,
-		_ *http.Request,
-	) {
-	}))
+	handler := AuthenticationMiddleware(
+		authService,
+		true,
+	)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer invalid_token")
 	rr := httptest.NewRecorder()
@@ -90,13 +70,12 @@ func TestAuthenticationMiddlewareWithInvalidToken(t *testing.T) {
 }
 
 func TestAuthenticationMiddlewareWithoutToken(t *testing.T) {
-	authService := new(MockAuthService)
+	authService := new(mocks.AuthService)
 
-	handler := AuthenticationMiddleware(authService, true)(http.HandlerFunc(func(
-		_ http.ResponseWriter,
-		_ *http.Request,
-	) {
-	}))
+	handler := AuthenticationMiddleware(
+		authService,
+		true,
+	)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)

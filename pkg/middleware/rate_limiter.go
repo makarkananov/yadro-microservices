@@ -7,12 +7,16 @@ import (
 	"yadro-microservices/pkg/limiter"
 )
 
+type TokenBucket interface {
+	Allow() bool
+}
+
 // RateLimiter is a middleware that limits the number of requests per IP address.
 // It uses the /x/time/rate package to implement the rate limiting logic.
 type RateLimiter struct {
 	rate      int64
 	maxTokens int64
-	clients   map[string]*limiter.TokenBucket
+	clients   map[string]TokenBucket
 	mu        sync.Mutex
 }
 
@@ -21,7 +25,7 @@ func NewRateLimiter(rate, maxTokens int64) *RateLimiter {
 	return &RateLimiter{
 		rate:      rate,
 		maxTokens: maxTokens,
-		clients:   make(map[string]*limiter.TokenBucket),
+		clients:   make(map[string]TokenBucket),
 	}
 }
 

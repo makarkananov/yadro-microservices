@@ -8,7 +8,7 @@ import (
 	"yadro-microservices/internal/core/domain"
 	"yadro-microservices/internal/core/port"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 

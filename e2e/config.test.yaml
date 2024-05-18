@@ -1,0 +1,11 @@
+postgres_url: "postgres://testuser:testpass@localhost:62811/testdb?sslmode=disable"
+redis_url: "redis://localhost:62814"
+source_url: "https://xkcd.com"
+max_comics_load: 0
+parallel: 20
+gaps_limit: 2
+update_time: "00:00"
+token_max_time: 15
+rate_limit: 10
+max_tokens: 100
+concurrency_limit: 10

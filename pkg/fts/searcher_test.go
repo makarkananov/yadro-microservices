@@ -83,7 +83,11 @@ func TestSearch(t *testing.T) {
 
 	searcher := fts.FullTextSearcher{}
 
-	results, _ := searcher.Search([]string{"apple", "banana"}, fts.ThroughIndexes(context.Background(), mockIndexer), fts.ReturnMostRelevant(2))
+	results, _ := searcher.Search(
+		[]string{"apple", "banana"},
+		fts.ThroughIndexes(context.Background(), mockIndexer),
+		fts.ReturnMostRelevant(2),
+	)
 
 	expectedResults := []int{1, 2}
 
