@@ -1,5 +1,5 @@
-postgres_url: "postgres://testuser:testpass@localhost:62811/testdb?sslmode=disable"
-redis_url: "redis://localhost:62814"
+postgres_url: "postgres://testuser:testpass@localhost:61734/testdb?sslmode=disable"
+redis_url: "redis://localhost:61737"
 source_url: "https://xkcd.com"
 max_comics_load: 0
 parallel: 20

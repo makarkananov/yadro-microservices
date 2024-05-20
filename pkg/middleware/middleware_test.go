@@ -17,14 +17,14 @@ func TestChain(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	mw1 := func(next http.Handler) http.HandlerFunc {
+	mw1 := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Middleware-1", "1")
 			next.ServeHTTP(w, r)
 		}
 	}
 
-	mw2 := func(next http.Handler) http.HandlerFunc {
+	mw2 := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Middleware-2", "2")
 			next.ServeHTTP(w, r)

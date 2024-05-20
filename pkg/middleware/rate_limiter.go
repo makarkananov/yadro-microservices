@@ -30,7 +30,7 @@ func NewRateLimiter(rate, maxTokens int64) *RateLimiter {
 }
 
 // Limit limits the number of requests per IP address.
-func (rl *RateLimiter) Limit(handler http.Handler) http.HandlerFunc {
+func (rl *RateLimiter) Limit(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
