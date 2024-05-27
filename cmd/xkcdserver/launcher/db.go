@@ -5,9 +5,9 @@ import (
 	"errors"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" // Required for migrations
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // Required for postgres
 	"github.com/spf13/viper"
 	"log"
 	"yadro-microservices/internal/migrations"

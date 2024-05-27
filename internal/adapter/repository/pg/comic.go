@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/lib/pq"
+	"log"
 	"yadro-microservices/internal/core/domain"
 )
 
@@ -24,7 +25,12 @@ func (r *ComicRepository) Save(ctx context.Context, c domain.Comics) error {
 	if err != nil {
 		return fmt.Errorf("error starting transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func(tx *sql.Tx) {
+		err := tx.Rollback()
+		if err != nil {
+			log.Printf("error rolling back transaction: %v\n", err)
+		}
+	}(tx)
 
 	stmt, err := tx.PrepareContext(ctx, "INSERT INTO comics(id, img, keywords) VALUES($1, $2, $3)")
 	if err != nil {

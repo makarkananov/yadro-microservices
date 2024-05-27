@@ -15,7 +15,7 @@ func NewConcurrencyLimiter(limit int) *ConcurrencyLimiter {
 }
 
 // Limit limits the number of concurrent requests.
-func (cl *ConcurrencyLimiter) Limit(handler http.Handler) http.HandlerFunc {
+func (cl *ConcurrencyLimiter) Limit(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cl.semaphore <- struct{}{}
 		defer func() {
