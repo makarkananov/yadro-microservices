@@ -23,7 +23,7 @@ func TestGetComic(t *testing.T) {
 			Transcript: "Test Transcript",
 			Alt:        "Test Alt",
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	defer mockServer.Close()
 
@@ -93,7 +93,7 @@ func TestGetComics(t *testing.T) {
 				Transcript: "Test Transcript 1",
 				Alt:        "Test Alt 1",
 			})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case comicID == 2:
 			w.WriteHeader(http.StatusOK)
 			err := json.NewEncoder(w).Encode(ComicResponse{
@@ -103,7 +103,7 @@ func TestGetComics(t *testing.T) {
 				Transcript: "Test Transcript 2",
 				Alt:        "Test Alt 2",
 			})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -147,7 +147,7 @@ func TestGetComicsWithGaps(t *testing.T) {
 				Transcript: "Test Transcript 1",
 				Alt:        "Test Alt 1",
 			})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -201,7 +201,7 @@ func TestGetComics_ContextCancelled(t *testing.T) {
 			Transcript: "Test Transcript 1",
 			Alt:        "Test Alt 1",
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	defer mockServer.Close()
 
