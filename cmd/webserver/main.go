@@ -35,7 +35,10 @@ func main() {
 
 	// Initialize http mux and handlers
 	mux := http.NewServeMux()
-	authHandler := web.NewAuthHandler(viper.GetString("auth_url"))
+	authHandler := web.NewAuthHandler(
+		viper.GetString("auth_url"),
+		time.Duration(viper.GetInt("token_max_time"))*time.Minute,
+	)
 	comicsHandler := web.NewComicHandler(viper.GetString("comics_url"))
 
 	mux.HandleFunc("GET /comics", comicsHandler.SearchComics)

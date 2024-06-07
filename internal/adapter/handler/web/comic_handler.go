@@ -42,7 +42,7 @@ func (ch *ComicHandler) SearchComics(w http.ResponseWriter, r *http.Request) {
 	tokenCookie, err := r.Cookie("token")
 	if err != nil {
 		log.Printf("Failed to get token: %s", err)
-		http.Error(w, "Failed to get token", http.StatusUnauthorized)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 

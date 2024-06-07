@@ -11,12 +11,16 @@ import (
 
 // AuthHandler is html handler for authentication.
 type AuthHandler struct {
-	loginURL string
+	loginURL     string
+	tokenMaxTime time.Duration
 }
 
 // NewAuthHandler creates new AuthHandler.
-func NewAuthHandler(loginURL string) *AuthHandler {
-	return &AuthHandler{loginURL: loginURL}
+func NewAuthHandler(loginURL string, tokenMaxTime time.Duration) *AuthHandler {
+	return &AuthHandler{
+		loginURL:     loginURL,
+		tokenMaxTime: tokenMaxTime,
+	}
 }
 
 // LoginForm renders login page.
@@ -79,10 +83,13 @@ func (ah *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	expiration := time.Now().Add(ah.tokenMaxTime)
 	http.SetCookie(w, &http.Cookie{
-		Name:  "token",
-		Value: result["token"],
-		Path:  "/",
+		Name:     "token",
+		Value:    result["token"],
+		Path:     "/",
+		Expires:  expiration,
+		HttpOnly: true,
 	})
 	http.Redirect(w, r, "/comics", http.StatusSeeOther)
 }
