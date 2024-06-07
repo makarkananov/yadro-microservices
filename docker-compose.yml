@@ -20,12 +20,21 @@ services:
   xkcd_server:
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./xkcdserver.Dockerfile
     restart: always
     ports:
       - "8080:8080"
     depends_on:
       - postgres
-
+      - redis
+  web_server:
+    build:
+      context: .
+      dockerfile: ./webserver.Dockerfile
+    restart: always
+    ports:
+      - "8081:8081"
+    depends_on:
+      - xkcd_server
 volumes:
   postgres_data:

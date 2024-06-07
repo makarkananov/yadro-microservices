@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -14,7 +13,7 @@ func TestChain(t *testing.T) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("OK"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	mw1 := func(next http.HandlerFunc) http.HandlerFunc {
@@ -48,7 +47,7 @@ func TestRateLimiter(t *testing.T) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("OK"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	limiter := NewRateLimiter(1, 1)
@@ -83,7 +82,7 @@ func TestRateLimiterMultipleIPs(t *testing.T) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("OK"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	limiter := NewRateLimiter(1, 1)
@@ -120,7 +119,7 @@ func TestConcurrencyLimiter(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("OK"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	limiter := NewConcurrencyLimiter(1)

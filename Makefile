@@ -3,10 +3,13 @@ default: all
 all: build run
 
 build:
-	docker-compose build
+	docker compose build
 
 run:
-	docker-compose up -d
+	docker compose up -d
+
+web:
+	docker compose up -d web_server
 
 test:
 	@set CGO_ENABLED=1&& go test -race -coverprofile=coverage.out ./...

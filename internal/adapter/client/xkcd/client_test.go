@@ -25,7 +25,7 @@ func TestComicClient_GetComics(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 		err := json.NewEncoder(w).Encode(comic)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	defer mockServer.Close()
 
@@ -75,7 +75,7 @@ func TestComicClient_GetComics_WithGaps(t *testing.T) {
 			}
 			w.WriteHeader(http.StatusOK)
 			err := json.NewEncoder(w).Encode(comic)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 	}))
 	defer mockServer.Close()
