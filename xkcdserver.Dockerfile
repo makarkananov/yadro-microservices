@@ -1,4 +1,4 @@
-FROM golang:1.22.3 as BuildStage
+FROM golang:1.22.4 as BuildStage
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ FROM alpine:latest
 
 WORKDIR /
 COPY --from=BuildStage /xkcdserver /xkcdserver
-COPY --from=BuildStage app/config.yaml /config.yaml
-COPY --from=BuildStage app/extended_stopwords_eng.txt /extended_stopwords_eng.txt
+COPY --from=BuildStage app/config/xkcdserver.yaml config/xkcdserver.yaml
+COPY --from=BuildStage app/config/extended_stopwords_eng.txt config/extended_stopwords_eng.txt
 
 CMD ["/xkcdserver"]

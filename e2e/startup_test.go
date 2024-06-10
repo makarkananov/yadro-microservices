@@ -25,10 +25,14 @@ import (
 func TestE2EStartupScenario(t *testing.T) {
 	ctx := context.Background()
 
-	// Run PostgreSQL container
-	postgresContainer, err := startPostgresContainer(ctx)
+	// Run PostgreSQL containers
+	xkcdPostgresContainer, err := startPostgresContainer(ctx)
 	require.NoError(t, err)
-	defer postgresContainer.Terminate(ctx)
+	defer xkcdPostgresContainer.Terminate(ctx)
+
+	authPostgresContainer, err := startPostgresContainer(ctx)
+	require.NoError(t, err)
+	defer authPostgresContainer.Terminate(ctx)
 
 	// Run Redis container
 	redisContainer, err := startRedisContainer(ctx)
@@ -36,16 +40,46 @@ func TestE2EStartupScenario(t *testing.T) {
 	defer redisContainer.Terminate(ctx)
 
 	// Get URLs for PostgreSQL and Redis
-	postgresURL, err := getPostgresURL(ctx, postgresContainer)
+	xkcdPostgresURL, err := getPostgresURL(ctx, xkcdPostgresContainer)
+	require.NoError(t, err)
+	authPostgresURL, err := getPostgresURL(ctx, authPostgresContainer)
 	require.NoError(t, err)
 	redisURL, err := getRedisURL(ctx, redisContainer)
 	require.NoError(t, err)
 
 	// Create config file
-	createConfigFile(postgresURL, redisURL)
+	createXkcdConfigFile(xkcdPostgresURL, redisURL)
+	createAuthConfigFile(authPostgresURL)
 
-	// Run the server
-	cmd := exec.Command("go", "run", "../cmd/xkcdserver/main.go", "-c", "config.test.yaml", "-p", "8081")
+	// Run the auth server
+	authCmd := exec.Command(
+		"go",
+		"run",
+		"../cmd/authserver/main.go",
+		"-c",
+		"config/authserver.test.yaml",
+		"-p",
+		"50051",
+	)
+
+	err = authCmd.Start()
+	require.NoError(t, err)
+	defer func() {
+		_ = authCmd.Process.Kill()
+	}()
+
+	time.Sleep(5 * time.Second) // Wait for the server to start
+
+	// Run the xkcd server
+	cmd := exec.Command(
+		"go",
+		"run",
+		"../cmd/xkcdserver/main.go",
+		"-c",
+		"config/xkcdserver.test.yaml",
+		"-p",
+		"8081",
+	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -168,7 +202,7 @@ func getRedisURL(ctx context.Context, container testcontainers.Container) (strin
 	return fmt.Sprintf("redis://%s:%s", host, port.Port()), nil
 }
 
-func createConfigFile(postgresURL, redisURL string) {
+func createXkcdConfigFile(postgresURL, redisURL string) {
 	config := fmt.Sprintf(`postgres_url: "%s"
 redis_url: "%s"
 source_url: "https://xkcd.com"
@@ -180,10 +214,22 @@ token_max_time: 15
 rate_limit: 10
 max_tokens: 100
 concurrency_limit: 10
+auth_server_url: "localhost:50051"
 `, postgresURL, redisURL)
 
-	err := os.WriteFile("config.test.yaml", []byte(config), 0644)
+	err := os.WriteFile("config/xkcdserver.test.yaml", []byte(config), 0644)
 	if err != nil {
-		panic("")
+		panic("Writing config file failed")
+	}
+}
+
+func createAuthConfigFile(postgresURL string) {
+	config := fmt.Sprintf(`postgres_url: "%s"
+token_max_time: 15
+`, postgresURL)
+
+	err := os.WriteFile("config/authserver.test.yaml", []byte(config), 0644)
+	if err != nil {
+		panic("Writing config file failed")
 	}
 }

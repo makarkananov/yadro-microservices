@@ -43,7 +43,7 @@ func NewRedisClient() *redis.Client {
 func applyMigrations(dbURL string) error {
 	log.Println("Trying to apply migrations...")
 
-	d, err := iofs.New(migrations.FS, "pg")
+	d, err := iofs.New(migrations.FS, "pg/xkcd")
 	if err != nil {
 		return err
 	}

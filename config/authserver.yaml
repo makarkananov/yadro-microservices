@@ -1,0 +1,2 @@
+token_max_time: 60 # Max time for JWT token to be valid (minutes)
+postgres_url: "postgres://xkcd_user:xkcd_password@auth_postgres:5432/xkcd?sslmode=disable"

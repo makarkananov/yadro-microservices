@@ -10,13 +10,14 @@ import (
 	"os/signal"
 	"syscall"
 	"yadro-microservices/cmd/xkcdserver/launcher"
+	"yadro-microservices/internal/adapter/client/auth"
 )
 
 func main() {
 	// Parse command line flags
 	var configPath string
 	var port string
-	flag.StringVar(&configPath, "c", "config.yaml", "Path to configuration file")
+	flag.StringVar(&configPath, "c", "config/xkcdserver.yaml", "Path to configuration file")
 	flag.StringVar(&port, "p", "8080", "Port to start server on")
 	flag.Parse()
 
@@ -34,8 +35,11 @@ func main() {
 	pgClient := launcher.NewPostgresClient()
 	redisClient := launcher.NewRedisClient()
 	xkcdService := launcher.NewXkcdService(ctx, pgClient, redisClient)
-	authService := launcher.NewAuthService(pgClient)
-	srv := launcher.NewServer(ctx, xkcdService, authService, port)
+	authClient, err := auth.NewClient(viper.GetString("auth_server_url"))
+	if err != nil {
+		log.Panic("Error creating auth client:", err)
+	}
+	srv := launcher.NewServer(ctx, xkcdService, authClient, port)
 
 	// Run the server
 	g, gCtx := errgroup.WithContext(ctx)

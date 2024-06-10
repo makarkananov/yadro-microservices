@@ -26,7 +26,7 @@ func NewXkcdService(ctx context.Context, pgClient *sql.DB, redisClient *redis.Cl
 
 	// Add comic client
 	xkcdClient := xkcd.NewClient(sourceURL, maxComics, goroutinesLimit, gapsLimit)
-	processor := words.NewTextProcessor("en", "extended_stopwords_eng.txt")
+	processor := words.NewTextProcessor("en", "config/extended_stopwords_eng.txt")
 	comicClient := xkcdadapter.NewComicClient(xkcdClient, processor)
 
 	// Add repositories

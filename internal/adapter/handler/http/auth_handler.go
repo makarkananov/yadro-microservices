@@ -11,12 +11,12 @@ import (
 
 // AuthHandler provides methods for handling auth requests.
 type AuthHandler struct {
-	service port.AuthService
+	authClient port.AuthClient
 }
 
 // NewAuthHandler creates a new instance of AuthHandler.
-func NewAuthHandler(service port.AuthService) *AuthHandler {
-	return &AuthHandler{service: service}
+func NewAuthHandler(authClient port.AuthClient) *AuthHandler {
+	return &AuthHandler{authClient: authClient}
 }
 
 // Login handles login requests.
@@ -41,7 +41,7 @@ func (ah *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := ah.service.Login(r.Context(), creds.Username, creds.Password)
+	token, err := ah.authClient.Login(r.Context(), creds.Username, creds.Password)
 	if err != nil {
 		log.Printf("Error logging in: %v", err)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -77,17 +77,12 @@ func (ah *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authorData := r.Context().Value(currentUserKey)
-	author, _ := authorData.(*domain.User)
-
-	err = ah.service.Register(
+	err = ah.authClient.Register(
 		r.Context(),
-		author,
-		&domain.User{
-			Username: creds.Username,
-			Password: creds.Password,
-			Role:     domain.Role(creds.Role),
-		})
+		creds.Username,
+		creds.Password,
+		domain.Role(creds.Role),
+	)
 
 	if err != nil {
 		log.Printf("Error registering user: %v", err)

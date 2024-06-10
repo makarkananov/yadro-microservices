@@ -13,13 +13,14 @@ import (
 	"syscall"
 	"time"
 	"yadro-microservices/internal/adapter/handler/web"
+	"yadro-microservices/pkg/middleware"
 )
 
 func main() {
 	// Parse command line flags
 	var configPath string
 	var port string
-	flag.StringVar(&configPath, "c", "config.yaml", "Path to configuration file")
+	flag.StringVar(&configPath, "c", "config/webserver.yaml", "Path to configuration file")
 	flag.StringVar(&port, "p", "8081", "Port to start server on")
 	flag.Parse()
 
@@ -45,11 +46,14 @@ func main() {
 	mux.HandleFunc("POST /login", authHandler.Login)
 	mux.HandleFunc("GET /login", authHandler.LoginForm)
 
+	rl := middleware.NewRateLimiter(viper.GetInt64("rate_limit"), viper.GetInt64("max_tokens"))
+	cl := middleware.NewConcurrencyLimiter(viper.GetInt("concurrency_limit"))
+
 	// Configure HTTP server
 	srv := &http.Server{
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 		Addr:              ":" + port,
-		Handler:           mux,
+		Handler:           middleware.Chain(mux.ServeHTTP, rl.Limit, cl.Limit),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
