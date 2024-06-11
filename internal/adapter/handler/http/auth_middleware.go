@@ -19,7 +19,12 @@ func AuthorizationMiddleware(role domain.Role) func(http.HandlerFunc) http.Handl
 			userData := r.Context().Value(currentUserKey)
 			user, _ := userData.(*domain.User)
 
-			if role != domain.UNDEFINED && (user == nil || user.Role != domain.ADMIN) {
+			if user == nil || user.Role > role {
+				log.Printf(
+					"User %s is not authorized to access the resource with role %s",
+					user.Username,
+					user.Role,
+				)
 				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
@@ -32,7 +37,7 @@ func AuthorizationMiddleware(role domain.Role) func(http.HandlerFunc) http.Handl
 // AuthenticationMiddleware is a middleware that checks if the user is
 // authenticated. If required is true, the middleware will return an error if the
 // user is not authenticated.
-func AuthenticationMiddleware(authService port.AuthService, required bool) func(http.HandlerFunc) http.HandlerFunc {
+func AuthenticationMiddleware(authClient port.AuthClient, required bool) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			tokenString := r.Header.Get("Authorization")
@@ -46,7 +51,7 @@ func AuthenticationMiddleware(authService port.AuthService, required bool) func(
 				return
 			}
 
-			user, err := authService.ValidateToken(r.Context(), tokenString[len("Bearer "):])
+			user, err := authClient.ValidateToken(r.Context(), tokenString[len("Bearer "):])
 			if err != nil {
 				log.Printf("Error validating token: %v", err)
 				if required {
@@ -58,6 +63,7 @@ func AuthenticationMiddleware(authService port.AuthService, required bool) func(
 				return
 			}
 
+			log.Printf("User %s is authenticated with role %s", user.Username, user.Role)
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), currentUserKey, user)))
 		}
 	}

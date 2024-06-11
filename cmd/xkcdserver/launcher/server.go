@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"time"
+	"yadro-microservices/internal/adapter/client/auth"
 	handler "yadro-microservices/internal/adapter/handler/http"
 	"yadro-microservices/internal/core/domain"
 	"yadro-microservices/internal/core/service"
@@ -16,27 +17,28 @@ import (
 func NewServer(
 	ctx context.Context,
 	xkcdService *service.XkcdService,
-	authService *service.AuthService,
+	authClient *auth.Client,
 	port string,
 ) *http.Server {
 	// Initialize http mux and handlers
 	mux := http.NewServeMux()
 	xkcdHandler := handler.NewXkcdHandler(xkcdService)
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authClient)
 	mux.HandleFunc("POST /update", middleware.Chain(
 		xkcdHandler.Update,
-		handler.AuthenticationMiddleware(authService, true),
+		handler.AuthenticationMiddleware(authClient, true),
 		handler.AuthorizationMiddleware(domain.ADMIN),
 	))
 	mux.HandleFunc("GET /pics", middleware.Chain(
 		xkcdHandler.Search,
-		handler.AuthenticationMiddleware(authService, true),
+		handler.AuthenticationMiddleware(authClient, true),
 		handler.AuthorizationMiddleware(domain.USER),
 	))
 	mux.HandleFunc("POST /login", authHandler.Login)
 	mux.HandleFunc("POST /register", middleware.Chain(
 		authHandler.Register,
-		handler.AuthenticationMiddleware(authService, false),
+		handler.AuthenticationMiddleware(authClient, true),
+		handler.AuthorizationMiddleware(domain.ADMIN),
 	))
 
 	rl := middleware.NewRateLimiter(viper.GetInt64("rate_limit"), viper.GetInt64("max_tokens"))

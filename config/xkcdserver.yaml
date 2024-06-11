@@ -4,10 +4,8 @@ parallel: 20 # Number of parallel requests
 gaps_limit: 2 # Limit of gaps (404 codes) before stopping the process of getting comics
 update_time: "03:00" # Time when updating the comics database is scheduled
 redis_url: "redis://redis:6379/0"
-postgres_url: "postgres://xkcd_user:xkcd_password@postgres:5432/xkcd?sslmode=disable"
+postgres_url: "postgres://xkcd_user:xkcd_password@xkcd_postgres:5432/xkcd?sslmode=disable"
 rate_limit: 10 # Represents the rate at which the limiter should be filled with tokens
 max_tokens: 100 # Represents the maximum number of tokens that can be stored in the limiter
 concurrency_limit: 10 # Max number of requests that can be executed in parallel
-token_max_time: 60 # Max time for JWT token to be valid (minutes)
-comics_url: "http://xkcd_server:8080/pics"
-auth_url: "http://xkcd_server:8080/login"
+auth_server_url: "auth_server:50051"

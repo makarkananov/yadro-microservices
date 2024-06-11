@@ -1,7 +1,7 @@
 version: '3.1'
 
 services:
-  postgres:
+  auth_postgres:
     image: postgres:latest
     restart: always
     environment:
@@ -9,9 +9,20 @@ services:
       POSTGRES_PASSWORD: xkcd_password
       POSTGRES_DB: xkcd
     ports:
-      - "5432:5432"
+      - "5431:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - auth_postgres_data:/var/lib/postgresql/data
+  xkcd_postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_USER: xkcd_user
+      POSTGRES_PASSWORD: xkcd_password
+      POSTGRES_DB: xkcd
+    ports:
+      - "5433:5432"
+    volumes:
+      - xkcd_postgres_data:/var/lib/postgresql/data
   redis:
     image: redis:latest
     restart: always
@@ -25,8 +36,12 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - postgres
+      - xkcd_postgres
       - redis
+      - auth_server
+    volumes:
+      - ./config/xkcdserver.yaml:/config/xkcdserver.yaml
+      - ./config/extended_stopwords_eng.txt:/config/extended_stopwords_eng.txt
   web_server:
     build:
       context: .
@@ -36,5 +51,19 @@ services:
       - "8081:8081"
     depends_on:
       - xkcd_server
+    volumes:
+      - ./config/webserver.yaml:/config/webserver.yaml
+  auth_server:
+    build:
+      context: .
+      dockerfile: ./authserver.Dockerfile
+    restart: always
+    ports:
+      - "50051:50051"
+    depends_on:
+      - auth_postgres
+    volumes:
+      - ./config/authserver.yaml:/config/authserver.yaml
 volumes:
-  postgres_data:
+  xkcd_postgres_data:
+  auth_postgres_data:

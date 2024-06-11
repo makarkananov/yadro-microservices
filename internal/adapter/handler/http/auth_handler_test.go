@@ -15,10 +15,15 @@ import (
 )
 
 func TestAuthHandler_Login(t *testing.T) {
-	authService := new(mocks.AuthService)
-	authService.On("Login", mock.Anything, "valid_user", "valid_pass").Return("valid_token", nil).Once()
+	authClient := new(mocks.AuthClient)
+	authClient.On(
+		"Login",
+		mock.Anything,
+		"valid_user",
+		"valid_pass",
+	).Return("valid_token", nil).Once()
 
-	handler := NewAuthHandler(authService)
+	handler := NewAuthHandler(authClient)
 	creds := map[string]string{
 		"username": "valid_user",
 		"password": "valid_pass",
@@ -29,19 +34,19 @@ func TestAuthHandler_Login(t *testing.T) {
 	handler.Login(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	authService.AssertExpectations(t)
+	authClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_LoginInvalidCredentials(t *testing.T) {
-	authService := new(mocks.AuthService)
-	authService.On(
+	authClient := new(mocks.AuthClient)
+	authClient.On(
 		"Login",
 		mock.Anything,
 		"invalid_user",
 		"invalid_pass",
 	).Return("", errors.New("invalid")).Once()
 
-	handler := NewAuthHandler(authService)
+	handler := NewAuthHandler(authClient)
 	creds := map[string]string{
 		"username": "invalid_user",
 		"password": "invalid_pass",
@@ -52,19 +57,20 @@ func TestAuthHandler_LoginInvalidCredentials(t *testing.T) {
 	handler.Login(rr, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	authService.AssertExpectations(t)
+	authClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_Register(t *testing.T) {
-	authService := new(mocks.AuthService)
-	authService.On(
+	authClient := new(mocks.AuthClient)
+	authClient.On(
 		"Register",
+		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 	).Return(nil).Once()
 
-	handler := NewAuthHandler(authService)
+	handler := NewAuthHandler(authClient)
 	creds := map[string]string{
 		"username": "valid_user",
 		"password": "valid_pass",
@@ -77,13 +83,13 @@ func TestAuthHandler_Register(t *testing.T) {
 	handler.Register(rr, req)
 
 	assert.Equal(t, http.StatusCreated, rr.Code)
-	authService.AssertExpectations(t)
+	authClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_RegisterInvalidRole(t *testing.T) {
-	authService := new(mocks.AuthService)
+	authClient := new(mocks.AuthClient)
 
-	handler := NewAuthHandler(authService)
+	handler := NewAuthHandler(authClient)
 	creds := map[string]string{
 		"username": "valid_user",
 		"password": "valid_pass",
@@ -96,13 +102,13 @@ func TestAuthHandler_RegisterInvalidRole(t *testing.T) {
 	handler.Register(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	authService.AssertExpectations(t)
+	authClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_Register_InvalidRole(t *testing.T) {
-	authService := new(mocks.AuthService)
+	authClient := new(mocks.AuthClient)
 
-	handler := NewAuthHandler(authService)
+	handler := NewAuthHandler(authClient)
 	creds := map[string]string{
 		"username": "valid_user",
 		"password": "valid_pass",
@@ -115,26 +121,26 @@ func TestAuthHandler_Register_InvalidRole(t *testing.T) {
 	handler.Register(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	authService.AssertExpectations(t)
+	authClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_Register_DecodeError(t *testing.T) {
-	authService := new(mocks.AuthService)
+	authClient := new(mocks.AuthClient)
 
-	handler := NewAuthHandler(authService)
+	handler := NewAuthHandler(authClient)
 	req, _ := http.NewRequest(http.MethodPost, "/register", bytes.NewBufferString("{invalid json}"))
 	req = req.WithContext(context.WithValue(req.Context(), currentUserKey, &domain.User{Role: domain.ADMIN}))
 	rr := httptest.NewRecorder()
 	handler.Register(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	authService.AssertExpectations(t)
+	authClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_Register_ValidationError(t *testing.T) {
-	authService := new(mocks.AuthService)
+	authClient := new(mocks.AuthClient)
 
-	handler := NewAuthHandler(authService)
+	handler := NewAuthHandler(authClient)
 	creds := map[string]string{
 		"username": "us",
 		"password": "pass",
@@ -147,19 +153,20 @@ func TestAuthHandler_Register_ValidationError(t *testing.T) {
 	handler.Register(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	authService.AssertExpectations(t)
+	authClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_Register_ServiceError(t *testing.T) {
-	authService := new(mocks.AuthService)
-	authService.On(
+	authClient := new(mocks.AuthClient)
+	authClient.On(
 		"Register",
+		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 	).Return(errors.New("service error")).Once()
 
-	handler := NewAuthHandler(authService)
+	handler := NewAuthHandler(authClient)
 	creds := map[string]string{
 		"username": "valid_user",
 		"password": "valid_pass",
@@ -172,5 +179,5 @@ func TestAuthHandler_Register_ServiceError(t *testing.T) {
 	handler.Register(rr, req)
 
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-	authService.AssertExpectations(t)
+	authClient.AssertExpectations(t)
 }

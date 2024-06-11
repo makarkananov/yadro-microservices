@@ -1,0 +1,6 @@
+comics_url: "http://xkcd_server:8080/pics"
+auth_url: "http://xkcd_server:8080/login"
+concurrency_limit: 10 # Max number of requests that can be executed in parallel
+rate_limit: 10 # Represents the rate at which the limiter should be filled with tokens
+max_tokens: 100 # Represents the maximum number of tokens that can be stored in the limiter
+token_max_time: 60 # Max time for JWT token to be valid (minutes)

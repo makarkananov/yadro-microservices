@@ -48,7 +48,7 @@ func TestAuthService_Register(t *testing.T) {
 	userRepo.On("Save", mock.Anything, mock.Anything).Return(nil).Once()
 
 	authService := NewAuthService(userRepo, 3600)
-	err := authService.Register(context.Background(), &domain.User{Role: domain.ADMIN}, &domain.User{
+	err := authService.Register(context.Background(), &domain.User{
 		Username: "new_user",
 		Password: "password",
 		Role:     domain.USER,
@@ -56,19 +56,6 @@ func TestAuthService_Register(t *testing.T) {
 
 	require.NoError(t, err)
 	userRepo.AssertExpectations(t)
-}
-
-func TestAuthService_RegisterUnauthorized(t *testing.T) {
-	userRepo := new(mocks.UserRepository)
-
-	authService := NewAuthService(userRepo, 3600)
-	err := authService.Register(context.Background(), &domain.User{Role: domain.USER}, &domain.User{
-		Username: "new_user",
-		Password: "password",
-		Role:     domain.ADMIN,
-	})
-
-	require.Error(t, err)
 }
 
 func TestAuthService_ValidateToken(t *testing.T) {
@@ -80,7 +67,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 		domain.USER), nil).Twice()
 
 	authService := NewAuthService(userRepo, 1*time.Hour)
-	err := authService.Register(context.Background(), &domain.User{Role: domain.USER}, domain.NewUser(
+	err := authService.Register(context.Background(), domain.NewUser(
 		"valid_user",
 		"password",
 		domain.USER))

@@ -55,11 +55,7 @@ func (a *AuthService) Login(ctx context.Context, username, password string) (str
 }
 
 // Register registers a new user.
-func (a *AuthService) Register(ctx context.Context, author *domain.User, newUser *domain.User) error {
-	if newUser.Role == domain.ADMIN && (author == nil || author.Role != domain.ADMIN) {
-		return errors.New("only admin can create admins")
-	}
-
+func (a *AuthService) Register(ctx context.Context, newUser *domain.User) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)

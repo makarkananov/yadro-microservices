@@ -1,4 +1,4 @@
-FROM golang:1.22.3 as BuildStage
+FROM golang:1.22.4 as BuildStage
 
 WORKDIR /app
 
@@ -15,7 +15,6 @@ FROM alpine:latest
 
 WORKDIR /
 COPY --from=BuildStage /webserver /webserver
-COPY --from=BuildStage app/config.yaml /config.yaml
 COPY --from=BuildStage app/internal/adapter/handler/web/templates/ /templates
 
 CMD ["/webserver"]

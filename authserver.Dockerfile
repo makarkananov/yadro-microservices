@@ -7,13 +7,13 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /xkcdserver cmd/xkcdserver/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /authserver cmd/authserver/main.go
 
 EXPOSE 8080
 
 FROM alpine:latest
 
 WORKDIR /
-COPY --from=BuildStage /xkcdserver /xkcdserver
+COPY --from=BuildStage /authserver /authserver
 
-CMD ["/xkcdserver"]
+CMD ["/authserver"]

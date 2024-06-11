@@ -46,6 +46,13 @@ type UserRepository interface {
 // AuthService defines the interface for the auth service.
 type AuthService interface {
 	Login(ctx context.Context, username, password string) (string, error)
-	Register(ctx context.Context, author *domain.User, newUser *domain.User) error
+	Register(ctx context.Context, newUser *domain.User) error
 	ValidateToken(ctx context.Context, tokenString string) (*domain.User, error)
+}
+
+// AuthClient defines the interface for the auth client. It is used to communicate with the auth server.
+type AuthClient interface {
+	Register(ctx context.Context, username, password string, role domain.Role) error
+	Login(ctx context.Context, username, password string) (string, error)
+	ValidateToken(ctx context.Context, token string) (*domain.User, error)
 }
