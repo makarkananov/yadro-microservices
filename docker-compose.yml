@@ -39,6 +39,9 @@ services:
       - xkcd_postgres
       - redis
       - auth_server
+    volumes:
+      - ./config/xkcdserver.yaml:/config/xkcdserver.yaml
+      - ./config/extended_stopwords_eng.txt:/config/extended_stopwords_eng.txt
   web_server:
     build:
       context: .
@@ -48,6 +51,8 @@ services:
       - "8081:8081"
     depends_on:
       - xkcd_server
+    volumes:
+      - ./config/webserver.yaml:/config/webserver.yaml
   auth_server:
     build:
       context: .
@@ -57,6 +62,8 @@ services:
       - "50051:50051"
     depends_on:
       - auth_postgres
+    volumes:
+      - ./config/authserver.yaml:/config/authserver.yaml
 volumes:
   xkcd_postgres_data:
   auth_postgres_data:

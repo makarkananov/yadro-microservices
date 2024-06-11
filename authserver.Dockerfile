@@ -15,6 +15,5 @@ FROM alpine:latest
 
 WORKDIR /
 COPY --from=BuildStage /authserver /authserver
-COPY --from=BuildStage app/config/authserver.yaml config/authserver.yaml
 
 CMD ["/authserver"]

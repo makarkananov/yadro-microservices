@@ -15,7 +15,6 @@ FROM alpine:latest
 
 WORKDIR /
 COPY --from=BuildStage /webserver /webserver
-COPY --from=BuildStage app/config/webserver.yaml config/webserver.yaml
 COPY --from=BuildStage app/internal/adapter/handler/web/templates/ /templates
 
 CMD ["/webserver"]
